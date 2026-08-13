@@ -1,0 +1,14 @@
+ M orchestrator/engine.py
+ M services/workflow.py
+ M tests/test_autonomous_loop.py
+ M tests/test_sidecar.py
+ M tests/test_workflow.py
+ M workflows/LTX2.3-Basic-API.yaml
+9ab2b50bc2ceca42b4a225aef7b9669d3c88c4f7
+ orchestrator/engine.py          |   4 +-
+ services/workflow.py            |  24 +-
+ tests/test_autonomous_loop.py   | 526 +++++++++++++++++++++++++++++++++++++++-
+ tests/test_sidecar.py           |   9 +
+ tests/test_workflow.py          |  47 +++-
+ workflows/LTX2.3-Basic-API.yaml |   7 +-
+ 6 files changed, 611 insertions(+), 6 deletions(-)

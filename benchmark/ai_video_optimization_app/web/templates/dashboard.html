@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MotionForge{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">{{ total }}</h5>
+                <p class="card-text mb-0">Total Experiments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">{{ running }}</h5>
+                <p class="card-text mb-0">Running</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">{{ completed }}</h5>
+                <p class="card-text mb-0">Completed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h5 class="card-title">{{ failed }}</h5>
+                <p class="card-text mb-0">Failed</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Experiments</h5>
+        <a href="/new" class="btn btn-sm btn-primary">New Experiment</a>
+    </div>
+    <div class="card-body p-0">
+        {% if experiments %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Status</th>
+                    <th>Iteration</th>
+                    <th>Score</th>
+                    <th>Started</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in experiments %}
+                <tr>
+                    <td><code>{{ exp.id[:8] }}</code></td>
+                    <td>
+                        {% if exp.status == 'COMPLETED' %}
+                            <span class="badge bg-success status-badge">{{ exp.status }}</span>
+                        {% elif exp.status == 'FAILED' %}
+                            <span class="badge bg-danger status-badge">{{ exp.status }}</span>
+                        {% elif exp.status == 'CANCELLED' %}
+                            <span class="badge bg-secondary status-badge">{{ exp.status }}</span>
+                        {% elif exp.status in ['GENERATING', 'ANALYZING', 'OPTIMIZING'] %}
+                            <span class="badge bg-warning text-dark status-badge">{{ exp.status }}</span>
+                        {% else %}
+                            <span class="badge bg-info status-badge">{{ exp.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ exp.current_iteration }} / {{ exp.max_iterations }}</td>
+                    <td>{{ exp.score | round(3) if exp.score is not none else '-' }}</td>
+                    <td>{{ exp.created_at[:16].replace('T', ' ') if exp.created_at else '-' }}</td>
+                    <td>
+                        <a href="/experiment/{{ exp.id }}" class="btn btn-sm btn-outline-secondary">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <p>No experiments yet.</p>
+            <a href="/new" class="btn btn-primary">Create Your First Experiment</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

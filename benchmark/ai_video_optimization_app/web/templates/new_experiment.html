@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}New Experiment - MotionForge{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">New Experiment</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="/new">
+                    <div class="mb-3">
+                        <label for="prompt" class="form-label">Prompt</label>
+                        <textarea class="form-control" id="prompt" name="prompt" rows="3" required
+                            placeholder="Describe the video you want to generate..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="negative_prompt" class="form-label">Negative Prompt</label>
+                        <textarea class="form-control" id="negative_prompt" name="negative_prompt" rows="2"
+                            placeholder="Things to avoid in the generation..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="workflow_template" class="form-label">Workflow Template</label>
+                        <input type="text" class="form-control" id="workflow_template" name="workflow_template"
+                            placeholder="workflow_name.json">
+                    </div>
+
+                    <hr class="my-4">
+                    <h5 class="mb-3">Parameters</h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="target_score" class="form-label">Target Score</label>
+                            <input type="number" class="form-control" id="target_score" name="target_score"
+                                step="0.01" min="0" max="1" value="0.8">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="max_iterations" class="form-label">Max Iterations</label>
+                            <input type="number" class="form-control" id="max_iterations" name="max_iterations"
+                                min="1" max="100" value="10">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="seed" class="form-label">Seed</label>
+                            <input type="number" class="form-control" id="seed" name="seed"
+                                placeholder="Random">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cfg" class="form-label">CFG Scale</label>
+                            <input type="number" class="form-control" id="cfg" name="cfg"
+                                step="0.1" value="7.0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="noise" class="form-label">Noise Level</label>
+                            <input type="number" class="form-control" id="noise" name="noise"
+                                step="0.01" min="0" max="1" value="0.1">
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Create Experiment</button>
+                        <a href="/" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

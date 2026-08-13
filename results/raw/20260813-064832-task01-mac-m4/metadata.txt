@@ -1,0 +1,14 @@
+Run ID: 20260813-064832-task01-mac-m4
+Task ID: task01-mac-m4
+Date: 2026-08-13 06:48:33 PDT
+Hostname: m4.local
+OS: MacOS 26
+Working Directory: /home/amit/projects/motionforge
+
+LLM Serving Engine: oMLX https://github.com/jundot/omlx
+Agent: Pi
+Model: Qwen3.6-27B-oQ4-mtp
+Context Limit: 
+        "contextWindow": 55000,
+        "maxTokens": 18384,
+

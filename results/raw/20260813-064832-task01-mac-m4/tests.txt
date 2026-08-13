@@ -1,0 +1,1 @@
+/home/amit/projects/local-coding-agent-benchmark/benchmark/scripts/stop_benchmark.sh: line 34: pytest: command not found

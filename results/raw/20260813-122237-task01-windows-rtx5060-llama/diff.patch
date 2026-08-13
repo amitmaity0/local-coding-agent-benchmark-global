@@ -1,0 +1,730 @@
+diff --git a/orchestrator/engine.py b/orchestrator/engine.py
+index ff254cb..246adc9 100755
+--- a/orchestrator/engine.py
++++ b/orchestrator/engine.py
+@@ -392,6 +392,8 @@ class Engine:
+             workflow = loader.set_seed(workflow, exp.seed, sidecar=sidecar)
+         workflow = loader.set_cfg(workflow, exp.cfg, sidecar=sidecar)
+         workflow = loader.set_noise(workflow, exp.noise, sidecar=sidecar)
++        cur_steps = getattr(exp, "steps", 30) or 30
++        workflow = loader.set_steps(workflow, cur_steps, sidecar=sidecar)
+ 
+         # Submit and wait
+         comfy = ComfyUIService(self._config.comfyui)
+@@ -1007,7 +1009,7 @@ class Engine:
+             )
+             raise
+ 
+-    # ── Autonomous Optimization Loop (not yet implemented) ─────
++    # ── Autonomous Optimization Loop ────────────────────────────
+ 
+ 
+     def run_loop(self, experiment_id: str) -> None:
+diff --git a/services/workflow.py b/services/workflow.py
+index 9bb7cca..fd5de92 100755
+--- a/services/workflow.py
++++ b/services/workflow.py
+@@ -555,16 +555,36 @@ class WorkflowLoader:
+         steps: int,
+         sidecar: Optional[_Sidecar] = None,
+     ) -> dict[str, Any]:
+-        """Update inference steps in KSampler nodes.
++        """Update inference steps in scheduler/sampler nodes.
++
++        If a sidecar is provided and contains a mapping for 'steps',
++        those specific node/input targets are used instead of the
++        generic approach. If 'steps' is explicitly unsupported, the
++        workflow is returned unchanged with a diagnostic log message.
+ 
+         Args:
+             workflow: The workflow JSON dictionary.
+             steps: Number of inference steps.
+-            sidecar: Optional parsed sidecar (currently unused for steps).
++            sidecar: Optional parsed sidecar for workflow-specific mapping.
+ 
+         Returns:
+             Updated workflow dictionary.
+         """
++        if sidecar and "steps" in sidecar.parameters:
++            result = copy.deepcopy(workflow)
++            mapping = sidecar.parameters["steps"]
++            if mapping.unsupported:
++                logger.warning(
++                    f"Parameter 'steps' is unsupported by this workflow's sidecar; "
++                    f"value {steps} will not be applied"
++                )
++                return result
++            for node_id, input_name in mapping.targets:
++                result[node_id]["inputs"][input_name] = steps
++                logger.debug(f"Set steps={steps} on node {node_id}.{input_name}")
++            return result
++
++        # Generic fallback: KSampler class-based
+         result = self._replace_by_class(workflow, "KSampler", {"steps": steps})
+         logger.debug(f"Set steps={steps}")
+         return result
+diff --git a/tests/test_autonomous_loop.py b/tests/test_autonomous_loop.py
+index 02b2a9c..1e9fc21 100644
+--- a/tests/test_autonomous_loop.py
++++ b/tests/test_autonomous_loop.py
+@@ -110,6 +110,9 @@ def _setup_experiment(
+     sampling_interval: float | None = None,
+     max_frames: int | None = None,
+     skip_frame: int | None = None,
++    steps: int | None = None,
++    seed: int | None = None,
++    cfg: float | None = None,
+ ) -> str:
+     """Create and start an experiment; return its ID."""
+     data = ExperimentCreate(
+@@ -122,6 +125,14 @@ def _setup_experiment(
+         skip_frame=skip_frame,
+     )
+     exp = engine.create_experiment(data)
++    # Optionally override specific parameters after creation
++    if steps is not None or seed is not None or cfg is not None:
++        engine._update_experiment_params(
++            exp.id,
++            steps=steps,
++            seed=seed,
++            cfg=cfg,
++        )
+     engine.start_experiment(exp.id)
+     return exp.id
+ 
+@@ -1696,4 +1707,517 @@ def test_sampling_settings_persisted_in_iteration():
+         assert it_orm is not None
+         assert it_orm.sampling_interval_used == 0.75
+         assert it_orm.max_frames_used == 36
+-        assert it_orm.skip_frame_used == 3
+\ No newline at end of file
++        assert it_orm.skip_frame_used == 3
++
++
++# ── Steps propagation: full chain verification ─────────────────
++
++
++def test_steps_reaches_workflow():
++    """Experiment.steps value is applied to the ComfyUI workflow via set_steps.
++
++    Verifies the full chain:
++        Experiment.steps = 45
++        → Engine.generate reads exp.steps
++        → WorkflowLoader.set_steps(workflow, 45, sidecar)
++        → LTX sidecar maps to node 206.inputs.steps = 45
++    """
++    from services.workflow import WorkflowLoader
++
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(
++        engine,
++        target_score=0.95,
++        max_iterations=5,
++        steps=45,
++    )
++
++    # Verify experiment was created with steps=45
++    status = engine.get_status(exp_id)
++    assert status.steps == 45
++
++    # Verify WorkflowLoader.set_steps correctly applies steps to LTX workflow
++    loader = WorkflowLoader(config.workflows_dir)
++    ltx_wf, sidecar = loader._load_with_sidecar("LTX2.3-Basic-API.json")
++    result = loader.set_steps(ltx_wf, 45, sidecar=sidecar)
++    assert result["206"]["inputs"]["steps"] == 45
++
++
++def test_steps_propagation_through_optimization():
++    """OptimizationResult.new_steps propagates through the full chain.
++
++    Iteration 1: steps=30
++    → optimizer returns new_steps=45
++    → _apply_optimization_result updates Experiment.steps=45
++    → Iteration 2: generate uses steps=45
++    """
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(
++        engine,
++        target_score=0.95,
++        max_iterations=5,
++        steps=30,
++    )
++
++    # Verify initial steps=30
++    status = engine.get_status(exp_id)
++    assert status.steps == 30
++
++    def mock_generate(*args, **kwargs):
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        report = _mock_qa_report(score=0.75)
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if it:
++                report_dir = (
++                    Path(config.experiments_dir)
++                    / exp_id
++                    / f"iteration_{it_num:03d}"
++                )
++                report_dir.mkdir(parents=True, exist_ok=True)
++                qa_path = report_dir / "qa_report.json"
++                qa_path.write_text(json.dumps(report.model_dump(mode="json")))
++                it.report_path = str(qa_path)
++                it.score = report.overall_score
++                session.flush()
++        return report
++
++    # First optimization returns new_steps=45, subsequent calls keep steps=45
++    call_count = {"opt": 0}
++
++    def mock_optimize(*args, **kwargs):
++        call_count["opt"] += 1
++        if call_count["opt"] == 1:
++            return _mock_opt_result(new_steps=45)
++        # Keep steps=45 for subsequent iterations
++        return _mock_opt_result(new_seed=100, new_steps=45)
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    # After first optimization, experiment steps should be 45
++    status = engine.get_status(exp_id)
++    assert status.steps == 45
++
++
++def test_all_optimizer_params_reach_workflow():
++    """All OptimizationResult parameters reach the next workflow generation.
++
++    Verifies the complete chain for prompt, seed, cfg, and steps.
++    """
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(
++        engine,
++        target_score=0.95,
++        max_iterations=5,
++        steps=30,
++        seed=42,
++        cfg=7.5,
++    )
++
++    def mock_generate(*args, **kwargs):
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        report = _mock_qa_report(score=0.75)
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if it:
++                report_dir = (
++                    Path(config.experiments_dir)
++                    / exp_id
++                    / f"iteration_{it_num:03d}"
++                )
++                report_dir.mkdir(parents=True, exist_ok=True)
++                qa_path = report_dir / "qa_report.json"
++                qa_path.write_text(json.dumps(report.model_dump(mode="json")))
++                it.report_path = str(qa_path)
++                it.score = report.overall_score
++                session.flush()
++        return report
++
++    opt_result = _mock_opt_result(
++        new_prompt="Optimized prompt text",
++        new_seed=99999,
++        new_cfg=9.0,
++        new_steps=50,
++    )
++
++    def mock_optimize(*args, **kwargs):
++        return opt_result
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    status = engine.get_status(exp_id)
++    assert status.prompt == "Optimized prompt text"
++    assert status.negative_prompt == "blurry"  # _mock_opt_result default
++    assert status.seed == 99999
++    assert status.cfg == 9.0
++    assert status.steps == 50
++    # noise is unsupported by LTX sidecar
++    assert status.noise == 0.1
++
++
++def test_candidate_semantics_no_extra_iterations():
++    """candidates_per_iteration=3 must not cause extra autonomous loop iterations.
++
++    The run_loop should run exactly max_iterations iterations regardless of
++    the candidates_per_iteration setting.
++    """
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(
++        engine,
++        target_score=0.95,
++        max_iterations=3,
++    )
++
++    gen_count = 0
++
++    def mock_generate(*args, **kwargs):
++        nonlocal gen_count
++        gen_count += 1
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        return _mock_qa_report(score=0.75)
++
++    def mock_optimize(*args, **kwargs):
++        return _mock_opt_result(new_seed=100)
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    # Exactly 3 generations for max_iterations=3
++    assert gen_count == 3, (
++        f"Expected exactly 3 generations for max_iterations=3, "
++        f"got {gen_count}. candidates_per_iteration must not affect loop count."
++    )
++
++
++def test_iteration_steps_used_immutability():
++    """Iteration N's steps_used is immutable after optimization updates experiment.
++
++    Iteration 1 uses steps=30, records steps_used=30.
++    Optimizer returns new_steps=50.
++    Experiment.steps becomes 50.
++    Iteration 2 uses steps=50, records steps_used=50.
++    Iteration 1's steps_used remains 30 (not updated to 50).
++    """
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(
++        engine,
++        target_score=0.95,
++        max_iterations=5,
++        steps=30,
++    )
++
++    def mock_generate(*args, **kwargs):
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        report = _mock_qa_report(score=0.75)
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if it:
++                report_dir = (
++                    Path(config.experiments_dir)
++                    / exp_id
++                    / f"iteration_{it_num:03d}"
++                )
++                report_dir.mkdir(parents=True, exist_ok=True)
++                qa_path = report_dir / "qa_report.json"
++                qa_path.write_text(json.dumps(report.model_dump(mode="json")))
++                it.report_path = str(qa_path)
++                it.score = report.overall_score
++                session.flush()
++        return report
++
++    call_count = {"opt": 0}
++
++    def mock_optimize(*args, **kwargs):
++        call_count["opt"] += 1
++        if call_count["opt"] == 1:
++            return _mock_opt_result(new_steps=50)
++        return _mock_opt_result(new_seed=100)
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    with get_session() as session:
++        it1 = (
++            session.query(IterationORM)
++            .filter_by(experiment_id=exp_id, number=1)
++            .first()
++        )
++        it2 = (
++            session.query(IterationORM)
++            .filter_by(experiment_id=exp_id, number=2)
++            .first()
++        )
++        assert it1 is not None
++        assert it2 is not None
++        assert it1.steps_used == 30, (
++            f"Iteration 1 steps_used should remain 30, got {it1.steps_used}"
++        )
++        assert it2.steps_used == 50, (
++            f"Iteration 2 steps_used should be 50, got {it2.steps_used}"
++        )
++
++
++def test_background_loop_returns_immediately():
++    """The start-loop route returns immediately without waiting for the loop.
++
++    Verifies that run_loop is dispatched to a background thread.
++    """
++    import threading
++    import inspect
++
++    from web.routes import start_experiment_loop
++
++    source = inspect.getsource(start_experiment_loop)
++    # Verify threading is used for background execution
++    assert "threading.Thread" in source or "thread.start" in source, (
++        "Start endpoint must dispatch run_loop to a background thread"
++    )
++    assert "run_loop" in source, "Start endpoint must call run_loop"
++
++
++def test_target_score_equal_stops():
++    """QA score exactly equal to target_score stops the loop."""
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(engine, target_score=0.8, max_iterations=10)
++
++    gen_count = 0
++
++    def mock_generate(*args, **kwargs):
++        nonlocal gen_count
++        gen_count += 1
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        return _mock_qa_report(score=0.8)  # exactly equal to target
++
++    def mock_optimize(*args, **kwargs):
++        return _mock_opt_result(new_seed=100)
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    # Should stop after 1 iteration (score 0.8 >= target 0.8)
++    assert gen_count == 1
++
++
++def test_target_score_below_continues():
++    """QA score below target_score continues to next iteration."""
++    config = _make_config()
++    engine = Engine(config)
++    exp_id = _setup_experiment(engine, target_score=0.8, max_iterations=10)
++
++    gen_count = 0
++
++    def mock_generate(*args, **kwargs):
++        nonlocal gen_count
++        gen_count += 1
++        it_num = kwargs.get("iteration", args[1] if len(args) > 1 else 1)
++        out_dir = Path(config.experiments_dir) / exp_id / f"iteration_{it_num:03d}"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        video_path = out_dir / "output.mp4"
++        video_path.write_bytes(b"fake")
++        with get_session() as session:
++            it = (
++                session.query(IterationORM)
++                .filter_by(experiment_id=exp_id, number=it_num)
++                .first()
++            )
++            if not it:
++                it = IterationORM(
++                    experiment_id=exp_id,
++                    number=it_num,
++                    status="completed",
++                    output_path=str(video_path),
++                    created_at=datetime.now(timezone.utc),
++                )
++                session.add(it)
++            else:
++                it.output_path = str(video_path)
++                it.status = "completed"
++            session.flush()
++        return {"output_files": [str(video_path)], "success": True}
++
++    def mock_analyze_with_sampling(*args, **kwargs):
++        # First iteration: below target, second: at target
++        nonlocal gen_count
++        if gen_count == 1:
++            return _mock_qa_report(score=0.79)
++        return _mock_qa_report(score=0.8)
++
++    def mock_optimize(*args, **kwargs):
++        return _mock_opt_result(new_seed=100)
++
++    engine.generate = mock_generate  # type: ignore[method-assign]
++    engine.analyze_with_sampling = mock_analyze_with_sampling  # type: ignore[method-assign]
++    engine.optimize = mock_optimize  # type: ignore[method-assign]
++
++    engine.run_loop(exp_id)
++
++    # First iteration: 0.79 < 0.8, continues. Second: 0.8 >= 0.8, stops.
++    assert gen_count == 2
+\ No newline at end of file
+diff --git a/tests/test_sidecar.py b/tests/test_sidecar.py
+index e04a8a7..4ac1b53 100644
+--- a/tests/test_sidecar.py
++++ b/tests/test_sidecar.py
+@@ -368,6 +368,12 @@ class TestLTXIntegration:
+         assert result["114"]["inputs"]["noise_seed"] == 123456
+         assert result["115"]["inputs"]["noise_seed"] == 123456
+ 
++    def test_steps_mapping(self) -> None:
++        wf, sc = self._load_actual()
++        loader = WorkflowLoader()
++        result = loader.set_steps(wf, 45, sidecar=sc)
++        assert result["206"]["inputs"]["steps"] == 45
++
+     def test_cfg_mapping(self) -> None:
+         wf, sc = self._load_actual()
+         loader = WorkflowLoader()
+@@ -563,6 +569,7 @@ class TestRepair3Validation:
+         assert "cfg" in sidecar.parameters
+         assert "noise" in sidecar.parameters
+         assert sidecar.parameters["noise"].unsupported is True
++        assert "steps" in sidecar.parameters
+ 
+     # Additional: verify LTX2.3 mappings still correct after fix
+     def test_ltx_mappings_still_correct(self) -> None:
+@@ -573,6 +580,7 @@ class TestRepair3Validation:
+         result = loader.set_prompt(wf, "POS", "NEG", sidecar=sc)
+         result = loader.set_seed(result, 999, sidecar=sc)
+         result = loader.set_cfg(result, 7.0, sidecar=sc)
++        result = loader.set_steps(result, 50, sidecar=sc)
+ 
+         assert result["121"]["inputs"]["text"] == "POS"
+         assert result["110"]["inputs"]["text"] == "NEG"
+@@ -580,6 +588,7 @@ class TestRepair3Validation:
+         assert result["115"]["inputs"]["noise_seed"] == 999
+         assert result["103"]["inputs"]["cfg"] == 7.0
+         assert result["129"]["inputs"]["cfg"] == 7.0
++        assert result["206"]["inputs"]["steps"] == 50
+ 
+     # Additional: missing workflow field in sidecar raises error
+     def test_missing_workflow_field_raises(self) -> None:
+diff --git a/tests/test_workflow.py b/tests/test_workflow.py
+index 5573aa2..576764f 100755
+--- a/tests/test_workflow.py
++++ b/tests/test_workflow.py
+@@ -149,4 +149,49 @@ def test_original_workflow_unchanged() -> None:
+     loader.replace_parameters(wf, {"KSampler": {"steps": 1}})
+     loader.replace_by_id(wf, "1", {"text": "z"})
+ 
+-    assert json.dumps(wf, sort_keys=True) == original
+\ No newline at end of file
++    assert json.dumps(wf, sort_keys=True) == original
++
++
++def test_set_steps_sidecar_aware():
++    """set_steps uses sidecar mapping when available, falls back to KSampler."""
++    # Without sidecar, should use KSampler fallback
++    wf = _sample_workflow()
++    loader = WorkflowLoader()
++    result = loader.set_steps(wf, 50)
++    assert result["3"]["inputs"]["steps"] == 50
++
++    # With LTX sidecar, should target node 206 (LTXVScheduler)
++    loader2 = WorkflowLoader(
++        workflows_dir=str(Path(__file__).resolve().parent.parent / "workflows")
++    )
++    ltx_wf, sidecar = loader2._load_with_sidecar("LTX2.3-Basic-API.json")
++    assert sidecar is not None
++    assert "steps" in sidecar.parameters
++
++    result2 = loader2.set_steps(ltx_wf, 45, sidecar=sidecar)
++    # LTX sidecar maps steps to node 206
++    assert result2["206"]["inputs"]["steps"] == 45
++
++
++def test_set_steps_sidecar_unsupported():
++    """set_steps respects unsupported flag in sidecar."""
++    # Create a sidecar with steps marked as unsupported
++    from services.workflow import _Sidecar, _SidecarMapping
++
++    wf = _sample_workflow()
++    sidecar_data = {
++        "version": 1,
++        "workflow": "test.json",
++        "parameters": {
++            "steps": {"supported": False},
++        },
++    }
++    # Manually create a minimal sidecar for testing
++    class FakeSidecar:
++        def __init__(self):
++            self.parameters = {"steps": _SidecarMapping({"supported": False})}
++
++    loader = WorkflowLoader()
++    result = loader.set_steps(wf, 99, sidecar=FakeSidecar())
++    # steps should NOT be applied when unsupported
++    assert result["3"]["inputs"]["steps"] == 20  # original value preserved
+\ No newline at end of file
+diff --git a/workflows/LTX2.3-Basic-API.yaml b/workflows/LTX2.3-Basic-API.yaml
+index 3811718..409301f 100644
+--- a/workflows/LTX2.3-Basic-API.yaml
++++ b/workflows/LTX2.3-Basic-API.yaml
+@@ -30,4 +30,9 @@ parameters:
+         input: "cfg"
+ 
+   noise:
+-    supported: false
+\ No newline at end of file
++    supported: false
++
++  steps:
++    required: false
++    node_id: "206"
++    input: "steps"
+\ No newline at end of file

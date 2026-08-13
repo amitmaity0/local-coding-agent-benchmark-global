@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Iteration {{ iteration }} Candidates{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Iteration {{ iteration }} - Candidates</h2>
+        <a href="/experiments/{{ experiment_id }}" class="btn btn-outline-secondary">
+            &larr; Back to Experiment
+        </a>
+    </div>
+
+    {% if not candidates %}
+    <div class="alert alert-info">No candidates found for this iteration.</div>
+    {% else %}
+    <div class="row">
+        {% for c in candidates %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 {% if c.is_best_in_iteration %}border-success border-2{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Candidate {{ c.candidate_number }}</strong>
+                    {% if c.is_best_in_iteration %}
+                    <span class="badge bg-success">✓ Best</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Seed:</strong> {{ c.seed }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Status:</strong>
+                        <span class="badge bg-{{ 'success' if c.status == 'completed' else 'warning' }}">
+                            {{ c.status }}
+                        </span>
+                    </div>
+                    {% if c.optimization_score is not none %}
+                    <div class="mb-2">
+                        <strong>Overall Score:</strong>
+                        <span class="badge bg-primary">{{ "%.3f"|format(c.optimization_score) }}</span>
+                    </div>
+                    {% endif %}
+                    {% if c.qa_report %}
+                    <div class="mb-2">
+                        <strong>Identity:</strong>
+                        {{ "%.3f"|format(c.qa_report.identity_score) if c.qa_report.identity_score is not none else '—' }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Motion:</strong>
+                        {{ "%.3f"|format(c.qa_report.motion_score) if c.qa_report.motion_score is not none else '—' }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Aesthetic:</strong>
+                        {{ "%.3f"|format(c.qa_report.aesthetic_score) if c.qa_report.aesthetic_score is not none else '—' }}
+                    </div>
+                    {% endif %}
+                    {% if c.generation_time %}
+                    <div class="mb-2">
+                        <strong>Generation Time:</strong> {{ "%.1f"|format(c.generation_time) }}s
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="/experiments/{{ experiment_id }}/iteration/{{ iteration }}/candidate/{{ c.candidate_id }}"
+                       class="btn btn-sm btn-outline-primary">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

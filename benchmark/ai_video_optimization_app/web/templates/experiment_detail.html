@@ -1,0 +1,743 @@
+{% extends "base.html" %}
+
+{% block title %}Experiment {{ experiment.id[:8] }} - MotionForge{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Experiment <code>{{ experiment.id[:8] }}</code></h1>
+    <div>
+        {% if experiment.status in ['NEW', 'QUEUED', 'COMPLETED', 'FAILED', 'CANCELLED'] %}
+            <form method="post" action="/experiment/{{ experiment.id }}/start" class="d-inline">
+                <button type="submit" class="btn btn-success">Start</button>
+            </form>
+        {% endif %}
+        {% if experiment.status in ['GENERATING', 'ANALYZING', 'OPTIMIZING', 'QUEUED'] %}
+            <form method="post" action="/experiment/{{ experiment.id }}/cancel" class="d-inline">
+                <button type="submit" class="btn btn-danger">Cancel</button>
+            </form>
+        {% endif %}
+        <a href="/" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Experiment Info</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if experiment.status == 'COMPLETED' %}
+                            <span class="badge bg-success">{{ experiment.status }}</span>
+                        {% elif experiment.status == 'FAILED' %}
+                            <span class="badge bg-danger">{{ experiment.status }}</span>
+                        {% elif experiment.status == 'CANCELLED' %}
+                            <span class="badge bg-secondary">{{ experiment.status }}</span>
+                        {% elif experiment.status in ['GENERATING', 'ANALYZING', 'OPTIMIZING'] %}
+                            <span class="badge bg-warning text-dark">{{ experiment.status }}</span>
+                        {% else %}
+                            <span class="badge bg-info">{{ experiment.status }}</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Prompt</dt>
+                    <dd class="col-sm-8">{{ experiment.prompt }}</dd>
+
+                    <dt class="col-sm-4">Negative Prompt</dt>
+                    <dd class="col-sm-8">{{ experiment.negative_prompt or '-' }}</dd>
+
+                    <dt class="col-sm-4">Target Score</dt>
+                    <dd class="col-sm-8">{{ experiment.target_score }}</dd>
+
+                    <dt class="col-sm-4">Max Iterations</dt>
+                    <dd class="col-sm-8">{{ experiment.max_iterations }}</dd>
+
+                    <dt class="col-sm-4">Created</dt>
+                    <dd class="col-sm-8">{{ experiment.created_at[:19].replace('T', ' ') }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Progress</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span id="progress-text">Iteration {{ experiment.current_iteration }} / {{ experiment.max_iterations }}</span>
+                    <span id="progress-pct">{{ (experiment.current_iteration / experiment.max_iterations * 100) | int }}%</span>
+                </div>
+                <div class="progress" style="height: 24px;">
+                    <div id="progress-bar" class="progress-bar" role="progressbar"
+                        style="width: {{ experiment.current_iteration / experiment.max_iterations * 100 }}%"
+                        aria-valuenow="{{ experiment.current_iteration }}"
+                        aria-valuemin="0" aria-valuemax="{{ experiment.max_iterations }}">
+                    </div>
+                </div>
+                <div class="row mt-3 g-2">
+                    <div class="col-4">
+                        <small class="text-muted">Current Score</small>
+                        <div class="fw-bold" id="current-score">{{ experiment.score | round(3) if experiment.score is not none else '-' }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Best Score</small>
+                        <div class="fw-bold" id="best-score">{{ experiment.best_score | round(3) if experiment.best_score is not none else '-' }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Best Iteration</small>
+                        <div class="fw-bold" id="best-iteration">{{ experiment.best_iteration or '-' }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Target Score</small>
+                        <div class="fw-bold">{{ experiment.target_score }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Confidence</small>
+                        <div class="fw-bold" id="confidence">{{ experiment.optimizer_confidence | round(2) if experiment.optimizer_confidence is not none else '-' }}</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">Est. Remaining</small>
+                        <div class="fw-bold" id="est-remaining">-</div>
+                    </div>
+                </div>
+                {% if experiment.stopping_reason %}
+                <div class="mt-3">
+                    <strong>Stopped:</strong> <span id="stopping-reason">{{ experiment.stopping_reason }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Score History</div>
+            <div class="card-body">
+                <canvas id="score-chart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Timeline</div>
+            <div class="card-body">
+                <div id="timeline-container" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-muted">Loading timeline...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Live Log</div>
+            <div class="card-body">
+                <div id="status-log" class="bg-dark text-light p-3 rounded" style="height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em;">
+                    <div>[{{ experiment.created_at[11:19] }}] Experiment created</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Iteration History</div>
+    <div class="card-body p-0">
+        {% if iterations %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Candidates</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for it in iterations %}
+                <tr>
+                    <td>{{ it.number }}</td>
+                    <td><span class="badge bg-secondary">{{ it.status }}</span></td>
+                    <td>{{ it.score | round(3) if it.score is not none else '-' }}</td>
+                    <td>
+                        <a href="/experiments/{{ experiment.id }}/iteration/{{ it.number }}/candidates">
+                            View
+                        </a>
+                    </td>
+                    <td>{{ it.created_at[:16].replace('T', ' ') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-4 text-muted">No iterations yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Experiment Summary -->
+<div class="card mt-4" id="experiment-summary-card">
+    <div class="card-header bg-primary text-white">Experiment Summary</div>
+    <div class="card-body" id="experiment-summary">
+        <div class="text-muted">Loading summary...</div>
+    </div>
+</div>
+
+<!-- Best Result -->
+<div class="card mt-4" id="best-result-card">
+    <div class="card-header bg-success text-white">Best Result</div>
+    <div class="card-body" id="best-result">
+        <div class="text-muted">Loading best result...</div>
+    </div>
+</div>
+
+<!-- Analytics Section -->
+<div class="card mt-4" id="analytics-card">
+    <div class="card-header">Analytics</div>
+    <div class="card-body">
+        <!-- Score Progression Chart -->
+        <h5 class="mb-3">Score Progression</h5>
+        <canvas id="score-analytics-chart" height="100"></canvas>
+
+        <!-- QA Progression Chart -->
+        <h5 class="mt-4 mb-3">QA Dimensions Progression</h5>
+        <canvas id="qa-analytics-chart" height="100"></canvas>
+
+        <!-- Candidate Distribution -->
+        <h5 class="mt-4 mb-3">Candidate Distribution</h5>
+        <div id="candidate-distribution">
+            <div class="text-muted">Loading candidate data...</div>
+        </div>
+
+        <!-- Strategy Usage -->
+        <h5 class="mt-4 mb-3">Strategy Usage</h5>
+        <div id="strategy-usage">
+            <div class="text-muted">Loading strategy data...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Metrics Summary -->
+<div class="card mt-4" id="metrics-card">
+    <div class="card-header">Experiment Metrics</div>
+    <div class="card-body">
+        <div class="row g-3" id="metrics-summary">
+            <div class="col-12 text-muted">Loading metrics...</div>
+        </div>
+    </div>
+</div>
+
+{% if optimization %}
+<div class="card mt-4">
+    <div class="card-header">Optimization Strategy</div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Mode</dt>
+            <dd class="col-sm-8">
+                {% set mode = optimization.optimization_mode or 'REFINE' %}
+                {% if mode == 'TARGETED' %}
+                    <span class="badge bg-primary">{{ mode }}</span>
+                {% elif mode == 'EXPLORE' %}
+                    <span class="badge bg-warning text-dark">{{ mode }}</span>
+                {% elif mode == 'REFINE' %}
+                    <span class="badge bg-info text-dark">{{ mode }}</span>
+                {% elif mode == 'RECOVER' %}
+                    <span class="badge bg-danger">{{ mode }}</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ mode }}</span>
+                {% endif %}
+            </dd>
+
+            {% if optimization.focus_areas %}
+            <dt class="col-sm-4">Focus</dt>
+            <dd class="col-sm-8">{{ optimization.focus_areas | join(', ') }}</dd>
+            {% endif %}
+
+            {% if optimization.parameters_modified %}
+            <dt class="col-sm-4">Modified</dt>
+            <dd class="col-sm-8">{{ optimization.parameters_modified | join(', ') }}</dd>
+            {% endif %}
+
+            {% if optimization.parameters_preserved %}
+            <dt class="col-sm-4">Preserved</dt>
+            <dd class="col-sm-8">{{ optimization.parameters_preserved | join(', ') }}</dd>
+            {% endif %}
+
+            {% if optimization.reasoning %}
+            <dt class="col-sm-4">Reason</dt>
+            <dd class="col-sm-8">{{ optimization.reasoning }}</dd>
+            {% endif %}
+
+            {% if optimization.expected_improvements %}
+            <dt class="col-sm-4">Expected Improvements</dt>
+            <dd class="col-sm-8">
+                <ul class="mb-0 ps-3">
+                    {% for imp in optimization.expected_improvements %}
+                    <li>{{ imp }}</li>
+                    {% endfor %}
+                </ul>
+            </dd>
+            {% endif %}
+
+            {% if optimization.confidence is not none %}
+            <dt class="col-sm-4">Confidence</dt>
+            <dd class="col-sm-8">{{ optimization.confidence | round(2) }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    var expId = '{{ experiment.id }}';
+    var maxIter = {{ experiment.max_iterations }};
+    var targetScore = {{ experiment.target_score }};
+    var scoreChart = null;
+
+    function initChart(data) {
+        var ctx = document.getElementById('score-chart').getContext('2d');
+        var labels = data.map(function(d) { return 'Iter ' + d.iteration; });
+        var scores = data.map(function(d) { return d.score; });
+        scoreChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'QA Score',
+                    data: scores,
+                    borderColor: '#4dabf7',
+                    backgroundColor: 'rgba(77, 171, 247, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }, {
+                    label: 'Target',
+                    data: Array(labels.length + 1).fill(targetScore),
+                    borderColor: '#ff6b6b',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 1.0 }
+                },
+                plugins: {
+                    legend: { display: true }
+                }
+            }
+        });
+    }
+
+    function updateChart(data) {
+        if (!scoreChart) {
+            initChart(data);
+            return;
+        }
+        var labels = data.map(function(d) { return 'Iter ' + d.iteration; });
+        var scores = data.map(function(d) { return d.score; });
+        scoreChart.data.labels = labels;
+        scoreChart.data.datasets[0].data = scores;
+        scoreChart.data.datasets[1].data = Array(labels.length + 1).fill(targetScore);
+        scoreChart.update();
+    }
+
+    function updateProgress(data) {
+        var pct = maxIter > 0 ? (data.current_iteration / maxIter * 100) : 0;
+        document.getElementById('progress-text').textContent =
+            'Iteration ' + data.current_iteration + ' / ' + maxIter;
+        document.getElementById('progress-pct').textContent = Math.round(pct) + '%';
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-bar').setAttribute('aria-valuenow', data.current_iteration);
+        if (data.score !== null) {
+            document.getElementById('current-score').textContent = data.score.toFixed(3);
+        }
+        if (data.best_score !== null) {
+            document.getElementById('best-score').textContent = data.best_score.toFixed(3);
+        }
+        if (data.best_iteration) {
+            document.getElementById('best-iteration').textContent = data.best_iteration;
+        }
+        if (data.optimizer_confidence !== null) {
+            document.getElementById('confidence').textContent = data.optimizer_confidence.toFixed(2);
+        }
+        if (data.estimated_remaining !== undefined) {
+            document.getElementById('est-remaining').textContent = data.estimated_remaining;
+        }
+        if (data.stopping_reason) {
+            var sr = document.getElementById('stopping-reason');
+            if (!sr) {
+                var div = document.createElement('div');
+                div.className = 'mt-3';
+                div.innerHTML = '<strong>Stopped:</strong> <span id="stopping-reason">' + data.stopping_reason + '</span>';
+                document.querySelector('#progress-bar').closest('.card-body').appendChild(div);
+            } else {
+                sr.textContent = data.stopping_reason;
+            }
+        }
+    }
+
+    function updateTimeline(data) {
+        var container = document.getElementById('timeline-container');
+        if (!data || !data.length) {
+            container.innerHTML = '<div class="text-muted">No timeline events yet.</div>';
+            return;
+        }
+        var html = '';
+        var iconMap = {
+            'done': '<i class="text-success">✔</i>',
+            'in_progress': '<i class="text-warning">⏳</i>'
+        };
+        var labelMap = {
+            'generated': 'Generated',
+            'qa_complete': 'QA Complete',
+            'optimization_complete': 'Optimization Complete',
+            'generating': 'Generating',
+            'analyzing': 'Analyzing',
+            'optimizing': 'Optimizing'
+        };
+        for (var i = 0; i < data.length; i++) {
+            var iter = data[i];
+            html += '<div class="mb-2"><strong>Iteration ' + iter.iteration + '</strong>';
+            for (var j = 0; j < iter.events.length; j++) {
+                var ev = iter.events[j];
+                var icon = iconMap[ev.status] || '•';
+                var label = labelMap[ev.type] || ev.type;
+                html += '<div class="ms-3 small">' + icon + ' ' + label;
+                if (ev.score !== undefined) {
+                    html += ' (Score: ' + ev.score.toFixed(3) + ')';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+        container.innerHTML = html;
+    }
+
+    function addLogEntry(msg) {
+        var log = document.getElementById('status-log');
+        if (!log) return;
+        var entry = document.createElement('div');
+        var now = new Date().toLocaleTimeString();
+        entry.textContent = '[' + now + '] ' + msg;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function poll() {
+        fetch('/api/experiment/' + expId + '/progress')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                updateProgress(data);
+                updateChart(data.score_history);
+                var statusText = data.status;
+                if (data.current_iteration) {
+                    statusText += ' (iter ' + data.current_iteration + ')';
+                }
+                if (data.score !== null) {
+                    statusText += ' score=' + data.score.toFixed(3);
+                }
+                addLogEntry(statusText);
+            })
+            .catch(function() {});
+
+        fetch('/api/experiment/' + expId + '/timeline')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                updateTimeline(data);
+            })
+            .catch(function() {});
+
+        // Load analytics data
+        loadAnalytics();
+    }
+
+    // ── Analytics Loading ──────────────────────────────────────
+
+    var scoreAnalyticsChart = null;
+    var qaAnalyticsChart = null;
+    var analyticsLoaded = false;
+
+    function loadAnalytics() {
+        if (analyticsLoaded) return;
+
+        fetch('/api/experiments/' + expId + '/analytics')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                analyticsLoaded = true;
+                updateExperimentSummary(data.summary);
+                updateBestResult(data.best_result);
+                updateScoreAnalyticsChart(data.score_progression);
+                updateQaAnalyticsChart(data.qa_progression);
+                updateCandidateDistribution(data.iteration_metrics);
+                updateStrategyUsage(data.strategy_stats);
+                updateMetricsSummary(data.metrics);
+            })
+            .catch(function() {});
+    }
+
+    function updateExperimentSummary(summary) {
+        var container = document.getElementById('experiment-summary');
+        if (!summary || !container) return;
+
+        var html = '<div class="row g-3">';
+        html += '<div class="col-md-6"><strong>Total Iterations:</strong> ' + summary.total_iterations + '</div>';
+        html += '<div class="col-md-6"><strong>Total Candidates:</strong> ' + summary.total_candidates + '</div>';
+        html += '<div class="col-md-6"><strong>Score:</strong> ' + summary.score_range + '</div>';
+        html += '<div class="col-md-6"><strong>Best Iteration:</strong> ' + summary.best_iteration + '</div>';
+        if (summary.best_candidate_iteration) {
+            html += '<div class="col-md-6"><strong>Best Candidate:</strong> iteration ' + summary.best_candidate_iteration + ' / candidate ' + summary.best_candidate_number + '</div>';
+        }
+        if (summary.primary_improvements && summary.primary_improvements.length) {
+            html += '<div class="col-12"><strong>Primary Improvements:</strong><ul class="mb-0 ps-3">';
+            for (var i = 0; i < summary.primary_improvements.length; i++) {
+                var imp = summary.primary_improvements[i];
+                html += '<li>' + imp.dimension + ' +' + imp.improvement + '</li>';
+            }
+            html += '</ul></div>';
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function updateBestResult(best) {
+        var container = document.getElementById('best-result');
+        if (!best || !container) return;
+
+        var html = '<div class="row g-3">';
+        html += '<div class="col-md-4"><strong>Iteration:</strong> ' + best.iteration + '</div>';
+        html += '<div class="col-md-4"><strong>Candidate:</strong> ' + best.candidate_number + '</div>';
+        html += '<div class="col-md-4"><strong>Score:</strong> ' + (best.score !== null ? best.score.toFixed(3) : '-') + '</div>';
+        html += '<div class="col-md-4"><strong>Seed:</strong> ' + (best.seed || '-') + '</div>';
+        html += '<div class="col-md-4"><strong>CFG:</strong> ' + best.cfg + '</div>';
+        html += '<div class="col-md-4"><strong>Noise:</strong> ' + best.noise + '</div>';
+        html += '<div class="col-12"><strong>Prompt:</strong> ' + (best.prompt || '-') + '</div>';
+        if (best.negative_prompt) {
+            html += '<div class="col-12"><strong>Negative Prompt:</strong> ' + best.negative_prompt + '</div>';
+        }
+        if (best.output_video) {
+            html += '<div class="col-12"><strong>Video:</strong> ';
+            html += '<video width="320" height="240" controls class="mt-2"><source src="' + best.output_video + '">Your browser does not support the video tag.</video>';
+            html += '</div>';
+        }
+        if (best.qa_report) {
+            html += '<div class="col-12 mt-3"><strong>QA Report:</strong><div class="table-responsive"><table class="table table-sm table-bordered mt-2">';
+            html += '<tr><td>Overall</td><td>' + (best.qa_report.overall_score !== undefined ? best.qa_report.overall_score.toFixed(3) : '-') + '</td>';
+            html += '<td>Identity</td><td>' + (best.qa_report.identity_score !== undefined ? best.qa_report.identity_score.toFixed(3) : '-') + '</td></tr>';
+            html += '<tr><td>Motion</td><td>' + (best.qa_report.motion_score !== undefined ? best.qa_report.motion_score.toFixed(3) : '-') + '</td>';
+            html += '<td>Camera</td><td>' + (best.qa_report.camera_score !== undefined ? best.qa_report.camera_score.toFixed(3) : '-') + '</td></tr>';
+            html += '<tr><td>Hands</td><td>' + (best.qa_report.hands_score !== undefined ? best.qa_report.hands_score.toFixed(3) : '-') + '</td>';
+            html += '<td>Face</td><td>' + (best.qa_report.face_score !== undefined ? best.qa_report.face_score.toFixed(3) : '-') + '</td></tr>';
+            html += '<tr><td>Lighting</td><td>' + (best.qa_report.lighting_score !== undefined ? best.qa_report.lighting_score.toFixed(3) : '-') + '</td>';
+            html += '<td>Physics</td><td>' + (best.qa_report.physics_score !== undefined ? best.qa_report.physics_score.toFixed(3) : '-') + '</td></tr>';
+            html += '<tr><td>Lip Sync</td><td>' + (best.qa_report.lip_sync_score !== undefined ? best.qa_report.lip_sync_score.toFixed(3) : '-') + '</td>';
+            html += '<td>Continuity</td><td>' + (best.qa_report.continuity_score !== undefined ? best.qa_report.continuity_score.toFixed(3) : '-') + '</td></tr>';
+            html += '</table></div></div>';
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function updateScoreAnalyticsChart(data) {
+        var ctx = document.getElementById('score-analytics-chart');
+        if (!ctx || !data || !data.length) return;
+
+        var labels = data.map(function(d) { return 'Iter ' + d.iteration; });
+        var scores = data.map(function(d) { return d.score; });
+
+        if (scoreAnalyticsChart) {
+            scoreAnalyticsChart.data.labels = labels;
+            scoreAnalyticsChart.data.datasets[0].data = scores;
+            scoreAnalyticsChart.data.datasets[1].data = Array(labels.length + 1).fill(targetScore);
+            scoreAnalyticsChart.update();
+            return;
+        }
+
+        scoreAnalyticsChart = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Overall Score',
+                    data: scores,
+                    borderColor: '#51cf66',
+                    backgroundColor: 'rgba(81, 207, 102, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }, {
+                    label: 'Target',
+                    data: Array(labels.length + 1).fill(targetScore),
+                    borderColor: '#ff6b6b',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 1.0 }
+                }
+            }
+        });
+    }
+
+    function updateQaAnalyticsChart(qaProg) {
+        var ctx = document.getElementById('qa-analytics-chart');
+        if (!ctx || !qaProg) return;
+
+        // Collect all iterations
+        var allIters = new Set();
+        Object.keys(qaProg).forEach(function(key) {
+            qaProg[key].forEach(function(v) { allIters.add(v.iteration); });
+        });
+        var iterations = Array.from(allIters).sort(function(a, b) { return a - b; });
+        if (!iterations.length) return;
+
+        var labels = iterations.map(function(i) { return 'Iter ' + i; });
+
+        // Define colors for dimensions
+        var colors = {
+            'identity_score': '#4dabf7',
+            'motion_score': '#51cf66',
+            'camera_score': '#ffd43b',
+            'hands_score': '#ff6b6b',
+            'face_score': '#cc5de8',
+            'lighting_score': '#20c997',
+            'physics_score': '#ff922b',
+            'lip_sync_score': '#a9e34b',
+            'continuity_score': '#74c0fc'
+        };
+        var displayNames = {
+            'identity_score': 'Identity',
+            'motion_score': 'Motion',
+            'camera_score': 'Camera',
+            'hands_score': 'Hands',
+            'face_score': 'Face',
+            'lighting_score': 'Lighting',
+            'physics_score': 'Physics',
+            'lip_sync_score': 'Lip Sync',
+            'continuity_score': 'Continuity'
+        };
+
+        var datasets = [];
+        Object.keys(colors).forEach(function(key) {
+            var values = qaProg[key] || [];
+            var map = {};
+            values.forEach(function(v) { map[v.iteration] = v.value; });
+            var data = iterations.map(function(i) { return map[i] !== undefined ? map[i] : null; });
+
+            datasets.push({
+                label: displayNames[key] || key,
+                data: data,
+                borderColor: colors[key],
+                borderWidth: 2,
+                pointRadius: 3,
+                spanGaps: true
+            });
+        });
+
+        if (qaAnalyticsChart) {
+            qaAnalyticsChart.data.labels = labels;
+            qaAnalyticsChart.data.datasets = datasets;
+            qaAnalyticsChart.update();
+            return;
+        }
+
+        qaAnalyticsChart = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 1.0 }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function updateCandidateDistribution(iterationMetrics) {
+        var container = document.getElementById('candidate-distribution');
+        if (!container || !iterationMetrics || !iterationMetrics.length) return;
+
+        var html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+        html += '<thead><tr><th>Iteration</th><th>Candidates</th><th>Best</th><th>Worst</th><th>Average</th><th>Spread</th><th>Winner</th></tr></thead><tbody>';
+        for (var i = 0; i < iterationMetrics.length; i++) {
+            var m = iterationMetrics[i];
+            html += '<tr>';
+            html += '<td>' + m.iteration + '</td>';
+            html += '<td>' + m.num_candidates + '</td>';
+            html += '<td>' + (m.best_candidate_score !== null ? m.best_candidate_score.toFixed(3) : '-') + '</td>';
+            html += '<td>' + (m.worst_candidate_score !== null ? m.worst_candidate_score.toFixed(3) : '-') + '</td>';
+            html += '<td>' + (m.average_candidate_score !== null ? m.average_candidate_score.toFixed(3) : '-') + '</td>';
+            html += '<td>' + m.score_spread.toFixed(3) + '</td>';
+            html += '<td>' + (m.winning_candidate !== null ? 'C' + m.winning_candidate : '-') + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    function updateStrategyUsage(stats) {
+        var container = document.getElementById('strategy-usage');
+        if (!container || !stats || !stats.length) {
+            container.innerHTML = '<div class="text-muted">No strategy data available yet.</div>';
+            return;
+        }
+
+        var html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+        html += '<thead><tr><th>Strategy</th><th>Iterations</th><th>Avg Improvement</th><th>Best Improvement</th><th>Success Rate</th></tr></thead><tbody>';
+        for (var i = 0; i < stats.length; i++) {
+            var s = stats[i];
+            var badgeClass = 'bg-secondary';
+            if (s.strategy === 'TARGETED') badgeClass = 'bg-primary';
+            else if (s.strategy === 'EXPLORE') badgeClass = 'bg-warning text-dark';
+            else if (s.strategy === 'REFINE') badgeClass = 'bg-info text-dark';
+            else if (s.strategy === 'RECOVER') badgeClass = 'bg-danger';
+
+            html += '<tr>';
+            html += '<td><span class="badge ' + badgeClass + '">' + s.strategy + '</span></td>';
+            html += '<td>' + s.iterations + '</td>';
+            html += '<td>' + s.average_improvement.toFixed(4) + '</td>';
+            html += '<td>' + s.best_improvement.toFixed(4) + '</td>';
+            html += '<td>' + (s.success_rate * 100).toFixed(1) + '%</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+    }
+
+    function updateMetricsSummary(metrics) {
+        var container = document.getElementById('metrics-summary');
+        if (!container || !metrics) return;
+
+        var html = '';
+        html += '<div class="col-md-3"><small class="text-muted">Best Score</small><div class="fw-bold">' + (metrics.best_overall_score !== null ? metrics.best_overall_score.toFixed(3) : '-') + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Initial Score</small><div class="fw-bold">' + (metrics.initial_score !== null ? metrics.initial_score.toFixed(3) : '-') + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Avg Score</small><div class="fw-bold">' + (metrics.average_score !== null ? metrics.average_score.toFixed(3) : '-') + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Median Score</small><div class="fw-bold">' + (metrics.median_score !== null ? metrics.median_score.toFixed(3) : '-') + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Improvement/Iter</small><div class="fw-bold">' + metrics.score_improvement_per_iteration.toFixed(4) + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Total Iterations</small><div class="fw-bold">' + metrics.total_iterations + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Total Candidates</small><div class="fw-bold">' + metrics.total_candidates + '</div></div>';
+        html += '<div class="col-md-3"><small class="text-muted">Success / Failed</small><div class="fw-bold">' + metrics.successful_candidates + ' / ' + metrics.failed_candidates + '</div></div>';
+        container.innerHTML = html;
+    }
+
+    // Initial load
+    poll();
+
+    // Poll every 3 seconds
+    setInterval(poll, 3000);
+})();
+</script>
+{% endblock %}

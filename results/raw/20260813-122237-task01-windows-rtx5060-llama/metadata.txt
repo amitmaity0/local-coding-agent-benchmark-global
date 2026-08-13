@@ -1,0 +1,14 @@
+Run ID: 20260813-122237-task01-windows-rtx5060-llama
+Task ID: task01-windows-rtx5060-llama
+Date: 2026-08-13 12:25:39 PDT
+Hostname: 110.100.1.288
+OS: Windows 11, RTX 5060 TI
+Working Directory: /home/amit/projects/motionforge
+
+LLM Serving Engine: llama.cpp
+Agent: Pi
+Model: Qwen3.6-27B-MTP-4.5bpw-pure.gguf
+Context Limit: 
+        "contextWindow": 55000,
+        "maxTokens": 18384,
+

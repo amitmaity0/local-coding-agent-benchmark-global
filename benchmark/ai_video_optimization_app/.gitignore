@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Virtual environments
+venv/
+venv3.13/
+.venv/
+env/
+
+# Runtime output
+logs/
+*.sqlite3
+*.db
+
+# Local config
+routing.json
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.*.swp
+AGENTS.md
+
+# Test/build artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+tasks/
