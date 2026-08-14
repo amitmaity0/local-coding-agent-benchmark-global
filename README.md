@@ -263,7 +263,7 @@ The benchmark should avoid manually guiding the agent toward the solution.
 
 # 🧪 Initial experiment
 
-The first recorded experiment uses a **MotionForge software-repair workload**.
+The first recorded experiment uses a **ai_video_optimization_app software-repair workload**.
 
 The two primary runs were captured independently from the same baseline repository revision:
 
@@ -329,7 +329,7 @@ LCAB favors transparent provenance over silently replacing or guessing missing m
 
 # 🧩 Code-change provenance
 
-The corresponding MotionForge benchmark branches are preserved separately from the benchmark repository.
+The corresponding ai_video_optimization_app benchmark branches are preserved separately from the benchmark repository.
 
 The three benchmark branches are:
 

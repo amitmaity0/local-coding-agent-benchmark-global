@@ -1,5 +1,5 @@
-export RUN_DIR="/home/amit/projects/local-coding-agent-benchmark/results/raw/20260813-122237-task01-windows-rtx5060-llama"
-export RUN_ID="20260813-122237-task01-windows-rtx5060-llama"
+export RUN_DIR=
+export RUN_ID=
 
 echo "Run directory: ${RUN_DIR}"
 echo "Run ID: ${RUN_ID}"
