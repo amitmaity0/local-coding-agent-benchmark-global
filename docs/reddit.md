@@ -417,7 +417,7 @@ The experiment does not establish a universal RTX-vs-M4 ranking, a universal lla
 
 ---
 
-**Model credit:** The RTX run used the 4.5bpw-pure GGUF release of Qwen3.6-27B published by **u/huytd189** on Hugging Face:
+**Model credit:** The RTX run used the 4.5bpw-pure GGUF release of Qwen3.6-27B published by **huytd189** on Hugging Face.
 
 https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF
 

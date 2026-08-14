@@ -678,14 +678,16 @@ See [`LICENSE`](LICENSE) for details.
 
 ---
 
-## 🙏 Model Credits
+## 🙏 Model Attribution & Credits
 
-The RTX 5060 Ti benchmark uses the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189** on Hugging Face.
+The RTX 5060 Ti benchmark used the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189**:
 
-:contentReference[oaicite:6]{index=6}
+[Qwen3.6-27B-pure-GGUF](https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF)
 
-The model was used as published without modification to the model weights.
+The benchmark used the published GGUF without modifying the model weights.
 
-Many thanks to **huytd189** for making this GGUF release available for local inference and benchmarking.
+**Upstream model:** [Qwen/Qwen3.6-27B](https://huggingface.co/Qwen/Qwen3.6-27B)
 
-The underlying model is **Qwen3.6-27B** from the Qwen team. See the upstream model documentation and the GGUF repository for licensing and attribution information.
+The underlying model was developed by the **Qwen Team**. The GGUF repository is a quantized distribution of the upstream Qwen3.6-27B model.
+
+Many thanks to **huytd189** for making the GGUF release available for local inference and benchmarking.

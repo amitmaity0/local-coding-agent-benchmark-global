@@ -1,6 +1,6 @@
 ---
 title: "Benchmarking Local Coding Agents on Real Software Repairs: RTX 5060 Ti vs M4 Pro at 55K Context"
-description: "An end-to-end benchmark of Pi + Qwen3.6-27B on a real MotionForge repair workload, comparing Windows + RTX 5060 Ti + llama.cpp with macOS + M4 Pro + oMLX."
+description: "An end-to-end benchmark of Pi + Qwen3.6-27B on a real ai_video_optimization_app repair workload, comparing Windows + RTX 5060 Ti + llama.cpp with macOS + M4 Pro + oMLX."
 tags:
   - coding-agents
   - local-llms
@@ -30,7 +30,7 @@ This experiment asks a different question:
 
 > **How does a complete local coding-agent stack perform when it has to repair real software?**
 
-I ran the same MotionForge software-repair workload with [Pi 0.84.1](https://github.com/badlogic/pi-mono) and Qwen3.6-27B on two local systems:
+I ran the same ai_video_optimization_app software-repair workload with [Pi 0.84.1](https://github.com/badlogic/pi-mono) and Qwen3.6-27B on two local systems:
 
 - **Windows + NVIDIA RTX 5060 Ti 16 GB + llama.cpp**
 - **macOS + Apple M4 Pro 64 GB + oMLX / MLX**
@@ -52,7 +52,7 @@ The recorded result was striking:
 | Output tokens | **36.3K** | **39.0K** |
 | Total tokens | **2.16M** | **4.15M** |
 
-The RTX configuration completed the recorded workload in approximately **3.83× less wall-clock time**.
+The RTX configuration completed the recorded workload in approximately **3.83× less wall-clock time** than the M4 configuration.
 
 But the more interesting finding is that the two agents converged on essentially the same engineering solution while taking very different paths to get there.
 
@@ -176,7 +176,7 @@ Both systems used:
 - **Pi 0.84.1**
 - **Qwen3.6-27B**
 - **55,000-token context target**
-- the same MotionForge repair workload
+- the same ai_video_optimization_app repair workload
 - the same starting repository revision
 
 The baseline revision was:
@@ -189,7 +189,7 @@ The benchmark repository preserves the run metadata, Pi session artifacts, repos
 
 Project repository:
 
-**https://github.com/amitmaity0/local-coding-agent-benchmark**
+**https://github.com/amitmaity0/local-coding-agent-benchmark-global**
 
 ---
 
@@ -209,8 +209,7 @@ NVIDIA RTX 5060 Ti
 llama.cpp
     │
     ▼
-Qwen3.6-27B
-4.5 bpw pure GGUF
+Qwen3.6-27B 4.5 bpw pure GGUF
     │
     ▼
 Pi 0.84.1
@@ -240,8 +239,7 @@ Apple M4 Pro
 oMLX / MLX
     │
     ▼
-Qwen3.6-27B
-oQ4-MTP
+Qwen3.6-27B-oQ4-MTP
     │
     ▼
 Pi 0.84.1
@@ -290,9 +288,9 @@ That distinction is important.
 
 ---
 
-# 4. The workload: a real MotionForge repair
+# 4. The workload: a real ai_video_optimization_app repair
 
-The benchmark is based on a real software-repair task in MotionForge rather than a synthetic coding prompt.
+The benchmark is based on a real software-repair task in ai_video_optimization_app rather than a synthetic coding prompt.
 
 The defect involved propagation of the `steps` parameter through an autonomous optimization workflow.
 
@@ -683,7 +681,7 @@ Therefore the result cannot isolate:
 
 The strongest defensible statement is:
 
-> **On this specific MotionForge repair workload, the tested RTX 5060 Ti + llama.cpp configuration completed the recorded 55K-context coding-agent run substantially faster than the tested M4 Pro + oMLX configuration.**
+> **On this specific ai_video_optimization_app repair workload, the tested RTX 5060 Ti + llama.cpp configuration completed the recorded 55K-context coding-agent run substantially faster than the tested M4 Pro + oMLX configuration.**
 
 That is both useful and reproducible.
 
@@ -1047,9 +1045,9 @@ results/raw/
 
 The benchmark repository is:
 
-**https://github.com/amitmaity0/local-coding-agent-benchmark**
+**https://github.com/amitmaity0/local-coding-agent-benchmark-global**
 
-The MotionForge code changes used for the benchmark are maintained separately so that the benchmark evidence and the software-under-test remain independently inspectable.
+The ai_video_optimization_app code changes used for the benchmark are maintained separately so that the benchmark evidence and the software-under-test remain independently inspectable.
 
 ---
 
@@ -1195,21 +1193,21 @@ The LCAB repository contains the methodology, workload definition, hardware desc
 
 Start here:
 
-**https://github.com/amitmaity0/local-coding-agent-benchmark**
+**https://github.com/amitmaity0/local-coding-agent-benchmark-global**
 
 ---
 
 
-## Model Attribution & Credits
+## 🙏 Model Attribution & Credits
 
-### Qwen3.6-27B GGUF
+The RTX 5060 Ti benchmark used the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189**:
 
-The RTX 5060 Ti benchmark used the **4.5bpw-pure GGUF** release of Qwen3.6-27B published by **huytd189**:
+[Qwen3.6-27B-pure-GGUF](https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF)
 
-:contentReference[oaicite:5]{index=5}
+The benchmark used the published GGUF without modifying the model weights.
 
-The model was used as published; no model-weight modifications were made for this benchmark.
+**Upstream model:** [Qwen/Qwen3.6-27B](https://huggingface.co/Qwen/Qwen3.6-27B)
+
+The underlying model was developed by the **Qwen Team**. The GGUF repository is a quantized distribution of the upstream Qwen3.6-27B model.
 
 Many thanks to **huytd189** for making the GGUF release available for local inference and benchmarking.
-
-The underlying model is Qwen3.6-27B. Please refer to the upstream model documentation and the GGUF repository for model-specific licensing and attribution information.
