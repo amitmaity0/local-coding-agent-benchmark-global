@@ -675,3 +675,17 @@ See [`LICENSE`](LICENSE) for details.
 ## ⭐ The benchmark in one sentence
 
 > **Local Coding Agent Benchmark measures how quickly and reliably local AI coding agents can perform real software repairs—not merely how many tokens they can generate per second.**
+
+---
+
+## 🙏 Model Credits
+
+The RTX 5060 Ti benchmark uses the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189** on Hugging Face.
+
+:contentReference[oaicite:6]{index=6}
+
+The model was used as published without modification to the model weights.
+
+Many thanks to **huytd189** for making this GGUF release available for local inference and benchmarking.
+
+The underlying model is **Qwen3.6-27B** from the Qwen team. See the upstream model documentation and the GGUF repository for licensing and attribution information.

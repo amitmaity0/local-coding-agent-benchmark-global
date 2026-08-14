@@ -414,3 +414,11 @@ This post intentionally distinguishes:
 - **future hypotheses** — why the time difference occurred.
 
 The experiment does not establish a universal RTX-vs-M4 ranking, a universal llama.cpp-vs-oMLX ranking, or a causal decomposition of the 87m 50s wall-time difference.
+
+---
+
+**Model credit:** The RTX run used the 4.5bpw-pure GGUF release of Qwen3.6-27B published by **u/huytd189** on Hugging Face:
+
+https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF
+
+Thanks to the author for making the GGUF available for local inference. The benchmark used the published model without modifying its weights.

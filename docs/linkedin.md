@@ -489,3 +489,11 @@ and does not establish a universal RTX-vs-M4 ranking.
 The strongest current claim remains:
 
 > **On this particular real 55K-context MotionForge repair, the tested RTX 5060 Ti + llama.cpp configuration completed the recorded Pi workload substantially faster than the tested M4 Pro + oMLX configuration, while following a substantially smaller recorded agent trajectory.**
+
+----
+
+**Model credit:** The RTX 5060 Ti run used the 4.5bpw-pure GGUF release of Qwen3.6-27B published by huytd189 on Hugging Face.
+
+https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF
+
+Thanks to the author for making the model available for local inference and benchmarking.

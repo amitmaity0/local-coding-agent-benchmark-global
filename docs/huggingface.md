@@ -1197,3 +1197,19 @@ Start here:
 
 **https://github.com/amitmaity0/local-coding-agent-benchmark**
 
+---
+
+
+## Model Attribution & Credits
+
+### Qwen3.6-27B GGUF
+
+The RTX 5060 Ti benchmark used the **4.5bpw-pure GGUF** release of Qwen3.6-27B published by **huytd189**:
+
+:contentReference[oaicite:5]{index=5}
+
+The model was used as published; no model-weight modifications were made for this benchmark.
+
+Many thanks to **huytd189** for making the GGUF release available for local inference and benchmarking.
+
+The underlying model is Qwen3.6-27B. Please refer to the upstream model documentation and the GGUF repository for model-specific licensing and attribution information.
