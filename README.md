@@ -1,487 +1,677 @@
-# Local Coding Agent Benchmark
+# 🧪 Local Coding Agent Benchmark
 
 > **Benchmarking local AI coding agents using real software-repair workloads**
 
-This project evaluates the **end-to-end performance of local coding-agent systems** by measuring how effectively they solve real software-repair tasks.
+[![Status](https://img.shields.io/badge/status-experimental-orange)](./)
+[![Agent](https://img.shields.io/badge/agent-Pi%200.84.1-blue)](./)
+[![Model](https://img.shields.io/badge/model-Qwen3.6--27B-purple)](./)
+[![Context](https://img.shields.io/badge/context-55K-green)](./)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-The primary goal is not to determine which machine produces the most tokens per second.
+## 🎯 What is this project?
 
-The goal is to answer a more practical question:
+**Local Coding Agent Benchmark (LCAB)** evaluates local AI coding agents by giving them **real software-repair tasks** and measuring the complete journey from problem statement to working code.
 
-> **How quickly and reliably can a local AI coding agent take a real software problem, investigate it, modify the code, run tests, recover from failures, and produce a working repair?**
+The benchmark is intentionally broader than a traditional LLM throughput test.
+
+Instead of asking only:
+
+> *How many tokens per second can this system generate?*
+
+LCAB asks:
+
+> **How quickly and reliably can a local AI coding agent investigate a real software problem, modify the repository, run tests, recover from failures, and produce a working repair?**
+
+That distinction is the central idea behind this project:
+
+> ## ⚡ Inference speed ≠ coding-agent speed
+
+A coding agent spends time reasoning, reading a repository, invoking tools, editing files, running tests, interpreting failures, and iterating. A system with higher raw generation throughput is not automatically the system that completes a real software-engineering task faster or more reliably.
 
 ---
 
-## Why This Benchmark?
+# 🧭 Current Benchmark
 
-Traditional LLM benchmarks often focus on:
-
-* tokens per second
-* prompt processing speed
-* model benchmark scores
-* GPU utilization
-* memory consumption
-
-These measurements are useful, but they do not necessarily predict how well a **coding agent** performs.
-
-A coding agent operates through an iterative loop:
+The initial benchmark compares two complete local-AI configurations running the same real software-repair workload.
 
 ```text
-Understand task
-     ↓
-Inspect repository
-     ↓
-Reason about problem
-     ↓
-Modify code
-     ↓
-Run tests / tools
-     ↓
-Analyze results
-     ↓
-Modify again
-     ↓
-Recover from failures
-     ↓
-Run tests again
-     ↓
-Successful repair
+                         🧪 LCAB — Initial Experiment
+                                  │
+                         Real software repair
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+                    ▼                           ▼
+             🟢 Windows + RTX              🔵 macOS + M4 Pro
+                    │                           │
+             RTX 5060 Ti 16 GB             M4 Pro + 64 GB
+                    │                           │
+                llama.cpp                    oMLX / MLX
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  │
+                           Qwen3.6-27B
+                                  │
+                             Pi 0.84.1
+                                  │
+                              55K context
+                                  │
+                                  ▼
+                         🔧 Software repair
+                                  │
+                                  ▼
+                         🧪 Test validation
+                                  │
+                                  ▼
+                     ⏱ End-to-end performance
 ```
 
-Therefore:
+## 🖥️ Configurations
 
-> **Inference speed ≠ coding-agent speed**
+| Component | 🟢 Windows / RTX | 🔵 macOS / M4 Pro |
+|---|---|---|
+| Hardware | NVIDIA RTX 5060 Ti | Apple M4 Pro |
+| GPU / accelerator memory | 16 GB VRAM | 64 GB unified memory |
+| System memory | 60 GB RAM | 64 GB unified memory |
+| Operating system | Windows 11 | macOS |
+| Inference runtime | llama.cpp | oMLX / MLX |
+| Model | Qwen3.6-27B | Qwen3.6-27B |
+| MTP | Enabled | Enabled |
+| Coding agent | Pi 0.84.1 | Pi 0.84.1 |
+| Context window | 55,000 | 55,000 |
+| Workload | Real software repair | Same workload |
+| Starting repository revision | `9ab2b50` | `9ab2b50` |
 
-A faster model runtime can still produce a slower or less reliable coding agent if it requires more iterations, generates more tokens, fails to recover from errors, or produces incorrect patches.
+The raw run metadata records the Mac configuration as oMLX with `Qwen3.6-27B-oQ4-mtp` and a 55,000-token context. The RTX run records llama.cpp with `Qwen3.6-27B-MTP-4.5bpw-pure.gguf` and the same 55,000-token context. Both runs used Pi 0.84.1.
 
-This benchmark measures the complete workflow.
-
----
-
-## Initial Benchmark Configuration
-
-The initial comparison focuses on two consumer-local AI systems running the same class of coding workload.
-
-| Component         | Windows System           | Mac System            |
-| ----------------- | ------------------------ | --------------------- |
-| Hardware          | NVIDIA RTX 5060 Ti 16 GB | Apple M4 Pro          |
-| System Memory     | 60 GB RAM                | 64 GB unified memory  |
-| Operating System  | Windows                  | macOS                 |
-| Model             | Qwen3.6-27B              | Qwen3.6-27B           |
-| Inference Runtime | llama.cpp                | oMLX / MLX            |
-| Coding Agent      | Local coding agent       | Local coding agent    |
-| Workload          | Real software repairs    | Same software repairs |
-
-The benchmark is intended to compare **complete configurations**, not isolated hardware components.
-
-For example, the results should be interpreted as:
-
-> Qwen3.6-27B + llama.cpp + RTX 5060 Ti + coding agent
-
-versus:
-
-> Qwen3.6-27B + oMLX/MLX + M4 Pro + coding agent
-
-rather than as a universal claim that one processor or GPU is inherently faster than another.
+> ⚠️ **Interpretation:** this is a comparison of complete AI coding-agent configurations. It is not a universal hardware-only benchmark of RTX 5060 Ti versus M4 Pro.
 
 ---
 
-# Benchmark Philosophy
+# 🔬 Why benchmark real repairs?
 
-## Primary Metric: Successful Repair per Unit Time
+Traditional local-LLM benchmarks are useful for measuring things such as:
 
-The most important outcome is whether the agent actually fixes the problem.
+- 🚀 generation throughput
+- 📥 prompt-processing throughput
+- 🧠 memory consumption
+- 📊 model benchmark scores
+- ⚙️ GPU utilization
 
-The benchmark therefore prioritizes:
+Those measurements answer important questions about model inference.
 
-1. **Repair success**
-2. **Wall-clock time to successful repair**
-3. **Tests passing**
-4. **Number of attempts / recovery cycles**
-5. **Total tokens consumed**
+They do not necessarily answer the question a developer ultimately cares about:
 
-Raw inference throughput is treated as a supporting metric.
+> **Can the local coding agent actually fix my software problem?**
 
-A system that generates more tokens per second but takes longer to produce a correct repair should not automatically be considered the better coding-agent system.
+A real repair trajectory looks more like this:
+
+```text
+📋 Understand task
+       │
+       ▼
+🔎 Inspect repository
+       │
+       ▼
+🧠 Reason about problem
+       │
+       ▼
+✏️ Modify code
+       │
+       ▼
+🧪 Run tests / tools
+       │
+       ▼
+📖 Read failures
+       │
+       ▼
+🔄 Iterate / recover
+       │
+       ├───────────────┐
+       │               │
+       ▼               │
+🧪 Run validation      │
+       │               │
+       ▼               │
+  ❌ Failure ──────────┘
+       │
+       ▼
+  ✅ Successful repair
+```
+
+LCAB therefore measures the **entire agent trajectory**, not only the model's token-generation speed.
 
 ---
 
-# Metrics
+# 📏 What does LCAB measure?
 
-The benchmark collects measurements at several levels.
+The benchmark organizes measurements into four layers.
 
-## 1. Model Performance
+### 1. 🧠 Model / inference
 
 Where available:
 
-* Prompt processing tokens/sec
-* Generation tokens/sec
-* MTP performance / acceptance
-* Context window
-* Context consumed
-* KV-cache usage
-* Total input tokens
-* Total output tokens
+- input tokens
+- output tokens
+- total tokens
+- prompt-processing tok/s
+- generation tok/s
+- MTP behavior
+- context window
+- context consumed
+- inference configuration
 
-## 2. Agent Performance
+### 2. 🤖 Agent behavior
 
-The benchmark also measures the behavior of the coding agent:
+- model calls
+- tool calls
+- iterations
+- retries
+- test attempts
+- recovery events
+- failed trajectories
+- context resets
+- time to first useful action
 
-* Total model calls
-* Total generated tokens
-* Total tool calls
-* Number of iterations
-* Number of retries
-* Failed trajectories
-* Context resets
-* Recovery events
-* Time to first useful action
-* Time to successful repair
+### 3. 🔧 Software-engineering outcome
 
-## 3. Software-Engineering Performance
+These are the primary outcomes:
 
-These are the most important benchmark outcomes:
+- repair success / failure
+- tests passing / failing
+- wall-clock time to successful repair
+- final patch
+- files modified
+- regression behavior
+- patch quality
 
-* Repair success/failure
-* Tests passing/failing
-* Final patch quality
-* Regression introduced
-* Number of files modified
-* Number of test attempts
-* Successful repair rate
-* Median repair time
+### 4. 💻 System resources
 
-## 4. Hardware / System Performance
+Where available:
 
-When measurements are available:
+- GPU VRAM
+- system / unified memory
+- GPU utilization
+- CPU utilization
+- memory pressure
+- power consumption
+- energy consumption
 
-* Peak VRAM usage
-* Peak system RAM usage
-* GPU utilization
-* CPU utilization
-* Memory pressure
-* Power consumption
-* Energy consumed
+The benchmark deliberately separates these measurements rather than collapsing everything into a single opaque score.
 
 ---
 
-# Benchmark Workload
+# 🏆 Primary benchmark philosophy
 
-The benchmark uses **real software-repair tasks** rather than purely synthetic token-generation workloads.
+## Successful repair comes first
 
-Each benchmark task should contain:
+LCAB prioritizes:
+
+1. **✅ Repair success**
+2. **⏱ Wall-clock time to successful repair**
+3. **🧪 Tests passing**
+4. **🔄 Recovery / iteration behavior**
+5. **🪙 Token consumption**
+6. **🚀 Raw inference throughput**
+
+A faster inference engine is not automatically better if the coding agent takes longer to reach a correct repair.
+
+A useful conceptual metric is:
 
 ```text
-Repository
-+
-Problem description
-+
-Expected behavior
-+
-Existing implementation
-+
-Test suite
+             Successful repairs
+Repair efficiency = ─────────────────────
+                         Time
 ```
 
-The agent starts from the repository's initial state and must independently investigate and repair the problem.
-
-A task is considered successful when the required tests pass and the resulting implementation satisfies the task requirements.
+However, LCAB reports the underlying measurements separately so that readers can inspect the evidence rather than relying on a single composite score.
 
 ---
 
-# Benchmark Execution
+# 📦 Benchmark workload
 
-Each system should run the same workload under equivalent conditions.
+The benchmark uses a real software repository and a real software-repair task.
 
-The benchmark should record the complete trajectory:
+Each task is intended to contain:
 
 ```text
-Task Start
-   │
-   ├── Model request
-   ├── Agent reasoning
-   ├── Tool call
-   ├── Repository inspection
-   ├── Code modification
-   ├── Test execution
-   ├── Failure / recovery
-   ├── Additional model request
-   ├── Additional tool calls
-   │
-   └── Final result
-          │
-          ├── SUCCESS
-          └── FAILURE
+📁 Repository
+   +
+📌 Known starting revision
+   +
+📝 Problem description
+   +
+🎯 Expected behavior
+   +
+🧪 Validation / test suite
 ```
 
-This makes it possible to analyze not only **whether** a repair succeeded, but **how** the agent reached the result.
+The agent starts from the defined repository state and is expected to independently:
+
+- inspect the codebase
+- search for relevant implementation
+- reason about the problem
+- modify files
+- execute commands
+- run tests
+- interpret failures
+- iterate toward a repair
+
+The benchmark should avoid manually guiding the agent toward the solution.
 
 ---
 
-# Results
+# 🧪 Initial experiment
 
-Benchmark results will be stored in machine-readable form so that the published numbers can be independently analyzed.
+The first recorded experiment uses a **MotionForge software-repair workload**.
 
-A typical summary will look like:
+The two primary runs were captured independently from the same baseline repository revision:
 
-| Metric                  | RTX 5060 Ti | M4 Pro |
-| ----------------------- | ----------: | -----: |
-| Repair success rate     |         TBD |    TBD |
-| Median repair time      |         TBD |    TBD |
-| Mean repair time        |         TBD |    TBD |
-| Median generated tokens |         TBD |    TBD |
-| Generation tok/s        |         TBD |    TBD |
-| Prompt tok/s            |         TBD |    TBD |
-| Model calls             |         TBD |    TBD |
-| Tool calls              |         TBD |    TBD |
-| Test attempts           |         TBD |    TBD |
-| Peak VRAM/RAM           |         TBD |    TBD |
-| Successful repairs/hour |         TBD |    TBD |
+```text
+Baseline
+9ab2b50bc2ceca42b4a225aef7b9669d3c88c4f7
+             │
+       ┌─────┴─────┐
+       ▼           ▼
+   Mac / oMLX   RTX / llama.cpp
+      55K           55K
+       │             │
+       └─────┬───────┘
+             ▼
+        Compare results
+```
 
-**Results will be populated as the benchmark dataset grows.**
+The raw benchmark records preserve:
 
----
+- `git-before.txt`
+- `git-after.txt`
+- `diff-before.patch`
+- `diff.patch`
+- Pi session data
+- Pi session HTML
+- Pi session JSONL
+- Pi version
+- metadata
+- timing information
+- test output
+- screenshots where captured
 
-# What This Benchmark Is Trying to Discover
-
-The benchmark is designed to investigate questions such as:
-
-### Does higher tokens/sec produce faster repairs?
-
-Not necessarily.
-
-A coding agent may spend its time performing tool calls, running tests, processing large contexts, or recovering from mistakes.
-
-### Does more available memory improve coding-agent performance?
-
-Potentially, particularly for large repositories and long-running agent trajectories.
-
-However, memory capacity alone does not determine repair quality.
-
-### Does MTP improve real coding-agent performance?
-
-The benchmark can measure whether faster generation translates into shorter end-to-end repair times.
-
-### How important is context length?
-
-Large context windows can allow an agent to retain more repository information, but they can also increase prompt-processing costs and memory requirements.
-
-### How important is agent architecture?
-
-The same underlying model can behave very differently depending on the agent's control loop, tool handling, retry strategy, context management, and failure recovery.
+This raw evidence is retained so that published conclusions can be traced back to the original runs.
 
 ---
 
-# Repository Structure
+# 📊 Initial result status
 
-The project is organized around reproducibility:
+The repository currently contains raw results for:
+
+| Run | Platform | Runtime | Model | Context | Agent |
+|---|---|---|---|---:|---|
+| `20260813-064832-task01-mac-m4` | macOS / M4 Pro | oMLX | Qwen3.6-27B-oQ4-mtp | 55K | Pi 0.84.1 |
+| `20260813-122237-task01-windows-rtx5060-llama` | Windows / RTX 5060 Ti | llama.cpp | Qwen3.6-27B-MTP-4.5bpw-pure.gguf | 55K | Pi 0.84.1 |
+
+Both raw runs record the same baseline repository commit:
+
+```text
+9ab2b50bc2ceca42b4a225aef7b9669d3c88c4f7
+```
+
+### ⚠️ Data-quality note
+
+The current raw `timing.txt` files contain a known collection-format problem: the recorded wall-time fields are not valid elapsed-duration values. The start and end timestamps are preserved and can be used to reconstruct elapsed time during result processing.
+
+The Mac `tests.txt` also records an environment error (`pytest: command not found`), so that file is **not treated as the authoritative source for final test results**.
+
+LCAB favors transparent provenance over silently replacing or guessing missing measurements.
+
+> **If a measurement has a collection problem, the benchmark should say so.**
+
+---
+
+# 🧩 Code-change provenance
+
+The corresponding MotionForge benchmark branches are preserved separately from the benchmark repository.
+
+The three benchmark branches are:
+
+```text
+benchmark/task9-m4pro-omlx-mtp-55k
+benchmark/task9-m4pro-omlx-mtp-unlimited
+benchmark/task9-rtx5060ti-mtp
+```
+
+The RTX and M4 Pro 55K branches both start from:
+
+```text
+repair/node-mapping-template
+        │
+        ▼
+9ab2b50bc2ceca42b4a225aef7b9669d3c88c4f7
+        │
+   ┌────┴────┐
+   ▼         ▼
+ RTX       M4 Pro
+55K         55K
+```
+
+This is important for experimental provenance: the primary hardware comparison is based on independently generated changes from the same starting revision.
+
+The M4 unlimited-context branch is retained as a separate exploratory experiment because its code trajectory differs more substantially from the two 55K runs.
+
+---
+
+# 🧭 How to interpret the benchmark
+
+LCAB compares **complete configurations**, not individual components in isolation.
+
+For example:
+
+```text
+🟢 RTX configuration
+
+RTX 5060 Ti
+     +
+Windows
+     +
+llama.cpp
+     +
+Qwen3.6-27B
+     +
+Pi
+     +
+55K context
+```
+
+versus:
+
+```text
+🔵 M4 configuration
+
+M4 Pro
+     +
+macOS
+     +
+oMLX / MLX
+     +
+Qwen3.6-27B
+     +
+Pi
+     +
+55K context
+```
+
+Therefore, a conclusion such as:
+
+> ❌ "The RTX 5060 Ti is faster than the M4 Pro."
+
+would be too broad for this experiment.
+
+A defensible conclusion is closer to:
+
+> ✅ "Under the tested configuration, Qwen3.6-27B running through llama.cpp on the RTX 5060 Ti produced a different end-to-end software-repair result than the corresponding Qwen3.6-27B configuration running through oMLX on the M4 Pro."
+
+Inference runtime, quantization, context configuration, batching, caching, MTP, and other runtime parameters can materially affect the result.
+
+---
+
+# 🗂️ Repository structure
+
+The benchmark repository separates workload definitions, execution tooling, hardware descriptions, and experimental evidence.
 
 ```text
 local-coding-agent-benchmark/
 │
-├── README.md
-├── methodology.md
-│
 ├── benchmark/
-│   ├── workloads/
-│   ├── scripts/
-│   └── runners/
+│   ├── ai_video_optimization_app/
+│   └── scripts/
+│       ├── initialize.sh
+│       ├── run_benchmark.sh
+│       └── stop_benchmark.sh
+│
+├── tasks/
+│   ├── repair_task_coding_agent.md
+│   ├── task01.md
+│   └── run-procedure.md
 │
 ├── hardware/
-│   ├── rtx5060ti.md
-│   └── m4pro.md
+│   ├── m4pro.md
+│   └── rtx5060ti.md
 │
 ├── results/
-│   ├── raw/
+│   ├── charts/
 │   ├── processed/
-│   └── charts/
+│   └── raw/
+│       ├── 20260813-064832-task01-mac-m4/
+│       └── 20260813-122237-task01-windows-rtx5060-llama/
 │
-└── LICENSE
+├── methodology.md
+├── README.md
+├── LICENSE
+└── .gitignore
 ```
 
-The exact structure may evolve as the benchmark framework develops.
+The raw run directories are intended to remain the **evidence layer**.
+
+Processed data and visualizations should be derived from the raw evidence rather than replacing it.
 
 ---
 
-# Reproducibility
+# 🔁 Reproducibility model
 
-Every published result should document:
+Every published benchmark result should identify:
 
-* Hardware
-* Operating system
-* Model
-* Model quantization
-* Inference runtime
-* Runtime version / commit
-* Coding-agent version
-* Agent configuration
-* Context length
-* Sampling configuration
-* MTP configuration
-* Relevant runtime flags
-* Repository revision
-* Benchmark task revision
+| Category | Required information |
+|---|---|
+| 💻 Hardware | CPU, GPU, memory |
+| 🖥️ OS | OS and version |
+| 🧠 Model | Exact model identifier / revision |
+| 📦 Quantization | Format and quantization |
+| ⚙️ Runtime | Runtime, version / commit |
+| 🤖 Agent | Agent and version |
+| 🧩 Agent config | Relevant settings |
+| 📐 Context | Context limit |
+| 🚀 MTP | Enabled / disabled |
+| 🎛️ Sampling | Relevant sampling settings |
+| 📁 Repository | Exact starting commit |
+| 🧪 Workload | Task identifier and revision |
+| ⏱️ Timing | Start/end and elapsed time |
+| 🧪 Validation | Tests and final outcome |
+| 📜 Evidence | Session logs and patches |
 
-The objective is to make results reproducible rather than presenting unexplained benchmark numbers.
+The objective is simple:
 
----
-
-# Important Interpretation Rule
-
-This benchmark compares **AI coding-agent configurations**, not hardware in isolation.
-
-For example:
-
-> "The RTX 5060 Ti is faster than the M4 Pro."
-
-is **not** a conclusion supported by this benchmark.
-
-A more accurate statement would be:
-
-> "Under this benchmark configuration, Qwen3.6-27B running through llama.cpp on the RTX 5060 Ti achieved better/worse end-to-end software-repair performance than the corresponding Qwen3.6-27B configuration running through oMLX/MLX on the M4 Pro."
-
-Inference configuration can have a significant effect on results, including context settings, batching, caching, Flash Attention, quantization, and other runtime parameters.
+> **A benchmark number should be traceable to an actual experiment.**
 
 ---
 
-# Beyond Tokens per Second
+# 🧠 Research questions
 
-The central idea of this benchmark is:
+LCAB is intended to investigate questions that conventional inference benchmarks do not fully answer.
+
+### ⚡ Does higher tok/s produce faster software repairs?
+
+Not necessarily.
+
+Agent behavior, tool execution, context processing, and recovery can dominate end-to-end time.
+
+### 🧠 Does additional context improve repair performance?
+
+Large context windows may help agents retain more repository information, but they can also increase prompt-processing work and memory requirements.
+
+### 🚀 Does MTP improve real coding-agent productivity?
+
+A higher generation rate is valuable only if it translates into faster successful repairs.
+
+### 🤖 How much does agent architecture matter?
+
+Different control loops, tool systems, retry strategies, and context-management approaches can cause the same model to behave very differently.
+
+### 💻 What matters more: inference speed or agent efficiency?
+
+The benchmark is designed to measure both.
+
+### 🔄 Can local coding agents become a practical software-engineering tool?
+
+That is the broader question motivating this project.
+
+---
+
+# 🛣️ Roadmap
+
+LCAB is intended to grow into a repeatable experimental framework rather than remain a single hardware comparison.
+
+## Phase 1 — Foundation
+
+- [x] Define end-to-end benchmark philosophy
+- [x] Create reproducible benchmark repository
+- [x] Define real software-repair workload
+- [x] Run initial M4 Pro experiment
+- [x] Run initial RTX 5060 Ti experiment
+- [x] Preserve raw Pi sessions
+- [x] Preserve repository diffs
+- [x] Preserve common baseline revision
+- [ ] Normalize processed metrics
+- [ ] Publish first comparison
+
+## Phase 2 — Runtime / configuration experiments
+
+- [ ] MTP vs non-MTP
+- [ ] Context-size comparison
+- [ ] llama.cpp configuration experiments
+- [ ] oMLX / MLX configuration experiments
+- [ ] Quantization comparison
+- [ ] Resource-utilization analysis
+
+## Phase 3 — Agent experiments
 
 ```text
-             Traditional Benchmark
-                     │
-                     ▼
-                tokens/sec
-                     │
-                     │
-                     ▼
-              Local Agent Benchmark
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-    Model Performance       Agent Behavior
-          │                     │
-          └──────────┬──────────┘
-                     ▼
-              Software Repair
-                     │
-                     ▼
-          ┌─────────────────────┐
-          │  Did it actually    │
-          │  fix the problem?   │
-          └─────────────────────┘
-                     │
-                     ▼
-              Time to Success
+              Same workload
+                   │
+        ┌──────────┴──────────┐
+        ▼                     ▼
+       Pi                 OpenHands
+        │                     │
+        └──────────┬──────────┘
+                   ▼
+             Same model
+                   │
+                   ▼
+          Same validation
 ```
 
-The benchmark therefore treats **successful software repair** as the ultimate outcome.
+Future work will extend the methodology to **OpenHands**, while keeping the workload and metrics framework as consistent as technically possible.
+
+## Phase 4 — Larger benchmark set
+
+- [ ] Multiple repair tasks
+- [ ] Multiple difficulty levels
+- [ ] Repeated runs
+- [ ] Statistical aggregation
+- [ ] Cross-hardware comparisons
+- [ ] Cross-runtime comparisons
+- [ ] Cross-agent comparisons
+- [ ] Public benchmark reports
 
 ---
 
-# Planned Experiments
+# 📚 Documentation
 
-The benchmark is intended to grow beyond the initial hardware comparison.
-
-Potential future experiments include:
-
-1. **RTX 5060 Ti vs M4 Pro for real coding-agent workloads**
-2. **Qwen3.6-27B MTP vs non-MTP**
-3. **Context length vs repair success and repair time**
-4. **Different inference runtimes**
-5. **Different local coding agents**
-6. **Agent failure/restart strategies**
-7. **OpenHands vs Pi**
-8. **Qwen3.6-27B runtime and quantization comparisons**
-9. **Memory usage vs repository size**
-10. **What actually determines local coding-agent performance?**
-
-The goal is to build a continuously expanding benchmark rather than a single hardware comparison.
+| Document | Purpose |
+|---|---|
+| [`methodology.md`](methodology.md) | Detailed benchmark methodology |
+| [`tasks/task01.md`](tasks/task01.md) | Current software-repair workload |
+| [`tasks/run-procedure.md`](tasks/run-procedure.md) | Benchmark execution procedure |
+| [`hardware/m4pro.md`](hardware/m4pro.md) | M4 Pro test environment |
+| [`hardware/rtx5060ti.md`](hardware/rtx5060ti.md) | RTX 5060 Ti test environment |
+| `results/processed/` | Normalized benchmark measurements |
+| `results/charts/` | Visualizations |
+| `results/raw/` | Original benchmark evidence |
 
 ---
 
-# Benchmark Principles
+# 🔍 Benchmark principles
 
-The project follows several principles:
+### 🧪 Real workloads over synthetic workloads
 
-### Real workloads over synthetic workloads
+Whenever practical, benchmark agents on actual software-engineering problems.
 
-Whenever practical, evaluate agents on actual software-repair tasks.
+### ⏱️ End-to-end performance over isolated throughput
 
-### End-to-end performance over isolated throughput
+Measure the entire repair trajectory.
 
-Measure the complete agent trajectory rather than only model generation speed.
+### ✅ Success over activity
 
-### Reproducibility over cherry-picked results
+More tokens, more tool calls, and more iterations do not automatically mean better performance.
 
-Publish configurations, raw measurements, and methodology.
+### 📜 Evidence over claims
 
-### Success over activity
+Keep raw sessions, patches, timestamps, and validation output.
 
-Generating more tokens or making more tool calls does not constitute better performance.
+### ⚖️ Comparable configurations
 
-### Transparent limitations
+Control variables whenever possible and explicitly document variables that change.
 
-Benchmark results should clearly state what was and was not controlled.
+### 🔬 Transparent limitations
 
-### Comparable configurations
+Do not hide collection errors, failed runs, or environmental anomalies.
 
-Keep the model, workload, agent behavior, and benchmark conditions as consistent as possible when comparing systems.
+### 🔁 Reproducibility
 
----
-
-# Status
-
-**Early-stage / experimental**
-
-The benchmark methodology and data collection process are still being developed.
-
-Initial focus:
-
-> **Qwen3.6-27B + local coding agent + real software-repair workloads**
-
-on:
-
-> **RTX 5060 Ti 16 GB / Windows / llama.cpp**
-
-versus:
-
-> **M4 Pro 64 GB / macOS / oMLX/MLX**
-
-More workloads, measurements, and systems will be added over time.
+A published result should contain enough information for another researcher or developer to understand and reproduce the experiment.
 
 ---
 
-# Contributing
+# 🌱 Long-term vision
 
-Contributions are welcome, particularly in the following areas:
+The goal is to build a practical benchmark for **local AI-assisted software engineering**.
 
-* New real-world repair workloads
-* Benchmark runners
-* Measurement tooling
-* Result visualization
-* Additional hardware
-* Additional inference runtimes
-* Additional coding agents
-* Independent reproduction of benchmark results
+The project is intentionally moving from:
 
-When contributing results, include the complete hardware, model, runtime, agent, and configuration details required to reproduce them.
+```text
+             "How fast is my local LLM?"
+                         │
+                         ▼
+             "How fast is my coding agent?"
+                         │
+                         ▼
+          "How reliably does it repair code?"
+                         │
+                         ▼
+        "How efficiently can it do real
+              software engineering?"
+```
+
+This creates a benchmark space where hardware, inference runtimes, models, agents, context strategies, and recovery mechanisms can be evaluated using the same underlying principle:
+
+> ## 🔧 Measure what the agent actually accomplishes.
 
 ---
 
-# License
+# 🤝 Contributions
 
-License information will be added as the benchmark repository is finalized.
+Contributions are welcome, especially around:
+
+- 🧪 new real-world repair tasks
+- 📊 benchmark analysis
+- 📈 visualization
+- ⚙️ measurement tooling
+- 💻 additional hardware
+- 🧠 additional models
+- 🚀 additional inference runtimes
+- 🤖 additional coding agents
+- 🔬 independent reproduction
+
+When contributing benchmark results, preserve the complete configuration and raw evidence required to understand the run.
 
 ---
 
-## Research Question
+# 📄 License
 
-The benchmark can ultimately be summarized by one question:
+This project is licensed under the **Apache License 2.0**.
 
-> **What is the fastest and most reliable way to perform real software engineering locally with an AI coding agent?**
+See [`LICENSE`](LICENSE) for details.
 
-Not:
+---
 
-> **Which machine has the highest tokens/sec?**
+## ⭐ The benchmark in one sentence
+
+> **Local Coding Agent Benchmark measures how quickly and reliably local AI coding agents can perform real software repairs—not merely how many tokens they can generate per second.**

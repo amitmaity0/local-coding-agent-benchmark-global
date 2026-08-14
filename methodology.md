@@ -1,542 +1,633 @@
-# Benchmark Methodology
+# 🔬 Benchmark Methodology
 
-## 1. Objective
+> **How the Local Coding Agent Benchmark measures real-world local AI software-repair performance**
 
-The objective of the Local Coding Agent Benchmark is to measure the **end-to-end effectiveness and performance of local AI coding agents when solving real software-repair problems**.
+The Local Coding Agent Benchmark (LCAB) is designed to measure **end-to-end effectiveness and performance of local AI coding agents on real software-repair workloads**.
 
-The benchmark is intentionally designed around software engineering outcomes rather than isolated model inference metrics.
+The benchmark intentionally focuses on software-engineering outcomes rather than isolated model inference metrics.
+
+---
+
+# 🎯 1. Research Objective
 
 The primary research question is:
 
 > **How quickly and reliably can a local coding-agent system solve a real software-repair task?**
 
-A coding-agent system is considered the complete stack:
+LCAB treats a coding-agent system as the complete execution stack:
 
 ```text
-Hardware
-    ↓
-Operating System
-    ↓
-Inference Runtime
-    ↓
-Model
-    ↓
-Coding Agent
-    ↓
-Tool Execution
-    ↓
-Repository
-    ↓
-Software Repair
-    ↓
-Tests
+┌──────────────────────┐
+│ 💻 Hardware          │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🪟 Operating System  │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ ⚡ Inference Runtime │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🧠 Model             │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🤖 Coding Agent      │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🔧 Tool Execution    │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 📁 Repository        │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🐛 Software Repair   │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ 🧪 Validation / Tests│
+└──────────────────────┘
 ```
 
-Therefore, benchmark results describe the performance of a **specific configuration**, rather than making universal claims about individual hardware components.
+Therefore, benchmark results describe a **specific tested configuration**, rather than making universal claims about one hardware component.
 
 For example:
 
 ```text
-RTX 5060 Ti
+🟢 RTX 5060 Ti
     +
-Windows
+🪟 Windows
     +
-llama.cpp
+⚡ llama.cpp
     +
-Qwen3.6-27B
+🧠 Qwen3.6-27B
     +
-Pi
+🤖 Pi
 ```
 
 is compared with:
 
 ```text
-M4 Pro
+🔵 M4 Pro
     +
-macOS
+🍎 macOS
     +
-oMLX / MLX
+⚡ oMLX / MLX
     +
-Qwen3.6-27B
+🧠 Qwen3.6-27B
     +
-Pi
+🤖 Pi
 ```
 
-Future experiments may replace Pi with OpenHands while keeping the underlying benchmark methodology unchanged.
+The methodology is intentionally reusable when the coding agent changes from Pi to OpenHands.
 
 ---
 
-# 2. Current Scope
+# 🤖 2. Coding Agent
 
-## 2.1 Current Coding Agent
+## Current Agent
 
-The current benchmark uses:
+The current LCAB benchmark uses:
 
 > **Pi**
 
 Pi is the primary coding agent for the initial benchmark series.
 
-The benchmark will measure how Pi performs when operating against real software repositories and real repair tasks.
+Each run records:
 
-Pi-specific behavior, configuration, tool usage, context management, and recovery behavior should be recorded as part of each benchmark run.
+- Pi version / commit
+- model configuration
+- inference endpoint/runtime
+- context configuration
+- sampling configuration
+- tool configuration
+- timeout/retry settings
+- permission configuration
+- working-directory configuration
+
+The objective is to make the agent configuration reproducible rather than treating the agent as a black box.
 
 ---
 
-## 2.2 Future Coding Agent
+## 🔮 Future Agent
 
-The methodology is intentionally agent-independent.
+The methodology is agent-independent.
 
-A future benchmark series will use:
+Future experiments are intended to include:
 
 > **OpenHands**
 
-The OpenHands experiments should use the same benchmark workloads whenever technically possible.
-
-This will allow comparisons such as:
+The same workloads should be reused whenever technically possible.
 
 ```text
-                 Same Workload
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-         Pi                   OpenHands
-          │                       │
-          ▼                       ▼
-      Qwen3.6-27B            Qwen3.6-27B
-          │                       │
-          ▼                       ▼
-    Local Runtime            Local Runtime
-          │                       │
-          ▼                       ▼
-       Hardware                Hardware
+                 🔧 Same Workload
+                       │
+             ┌─────────┴─────────┐
+             ▼                   ▼
+           🤖 Pi             🤖 OpenHands
+             │                   │
+             ▼                   ▼
+        Qwen3.6-27B         Qwen3.6-27B
+             │                   │
+             ▼                   ▼
+       Local Runtime        Local Runtime
+             │                   │
+             ▼                   ▼
+          Hardware            Hardware
 ```
 
 The objective is not to declare one agent universally superior.
 
-Instead, the benchmark should identify how different agent architectures affect:
+Instead, LCAB investigates how agent architecture affects:
 
-* repair success
-* repair time
-* token consumption
-* tool usage
-* failure recovery
-* resource consumption
+- repair success
+- repair time
+- token consumption
+- tool usage
+- failure recovery
+- resource consumption
+- trajectory/convergence behavior
 
 ---
 
-# 3. Benchmark Unit
+# 🧩 3. Benchmark Unit
 
 The fundamental unit of measurement is a:
 
 > **Software Repair Task**
 
-A benchmark task consists of a repository at a known revision plus a clearly defined software problem.
-
-A task should include:
+A task consists of a repository at a known revision plus a clearly defined software problem.
 
 ```text
-Repository
-    +
-Known starting revision
-    +
-Problem description
-    +
-Expected behavior
-    +
-Test suite
-    +
-Known validation criteria
+┌─────────────────────────────┐
+│ 📁 Repository               │
+├─────────────────────────────┤
+│ 🔖 Known starting revision  │
+├─────────────────────────────┤
+│ 🐛 Problem description      │
+├─────────────────────────────┤
+│ 🎯 Expected behavior        │
+├─────────────────────────────┤
+│ 🧪 Test suite               │
+├─────────────────────────────┤
+│ ✅ Validation criteria      │
+└─────────────────────────────┘
 ```
 
-The agent starts from the same repository state for every system being compared.
+Every compared system starts from the same repository state.
 
 ---
 
-# 4. Task Selection
+# 🔧 4. Task Selection
 
-Tasks should represent realistic software engineering problems rather than artificial model prompts.
+LCAB prioritizes realistic engineering problems over artificial prompts.
 
-Preferred tasks include:
+Preferred workloads include:
 
-* bugs
-* incorrect behavior
-* missing functionality
-* broken integrations
-* regression fixes
-* API compatibility problems
-* configuration problems
-* test failures
-* implementation defects
-* multi-file repairs
+- 🐛 bugs
+- ❌ incorrect behavior
+- ➕ missing functionality
+- 🔗 broken integrations
+- 🔄 regression fixes
+- 🔌 API compatibility problems
+- ⚙️ configuration problems
+- 🧪 test failures
+- 🧩 implementation defects
+- 📁 multi-file repairs
 
-Tasks should require the agent to perform genuine investigation and modification rather than simply generating an isolated code snippet.
+A good task requires genuine investigation and modification.
 
----
+It should not be reducible to:
 
-## 4.1 Task Difficulty
+```text
+Prompt
+  ↓
+Generate isolated function
+  ↓
+Done
+```
 
-Tasks should span multiple levels of complexity.
+Instead:
 
-### Simple
-
-Examples:
-
-* single-file bug
-* straightforward logic error
-* obvious test failure
-
-### Moderate
-
-Examples:
-
-* multiple interacting functions
-* multi-file modification
-* API behavior investigation
-* test-driven debugging
-
-### Complex
-
-Examples:
-
-* repository-wide investigation
-* ambiguous failure
-* multiple iterations
-* interaction between several components
-* failures requiring diagnosis and recovery
-
-The benchmark should avoid drawing conclusions from only one difficulty level.
+```text
+Problem
+   ↓
+Repository investigation
+   ↓
+Architecture understanding
+   ↓
+Implementation
+   ↓
+Testing
+   ↓
+Debugging
+   ↓
+Validated repair
+```
 
 ---
 
-# 5. Repository Preparation
+# 📈 5. Task Difficulty
 
-Every benchmark task must have a deterministic starting state.
+LCAB should eventually cover multiple difficulty levels.
 
-Before a run:
+| Level | Typical characteristics |
+|---|---|
+| 🟢 Simple | Single-file defect, straightforward logic error |
+| 🟡 Moderate | Multi-file modification, API investigation, test-driven debugging |
+| 🔴 Complex | Repository-wide investigation, ambiguous failures, multiple iterations, recovery |
 
-1. Clone or restore the repository.
-2. Checkout the exact benchmark revision.
-3. Reset all working-tree changes.
-4. Install required dependencies.
-5. Verify that the baseline environment is functional.
-6. Run the relevant baseline tests.
-7. Record the repository commit.
-8. Record the environment configuration.
+Conclusions should not be based exclusively on one difficulty level.
 
-The initial repository state must be identical for every compared system.
+The current Task 01 workload is intentionally representative of a **multi-file, stateful software-engineering problem**.
 
 ---
 
-# 6. Agent Instructions
+# 📁 6. Repository Preparation
 
-The agent should receive the same task description across benchmark configurations.
+Every run must have a deterministic starting state.
 
-The task prompt should provide only the information that a normal developer would reasonably receive when assigned the problem.
+Before execution:
 
-The benchmark should avoid giving one system additional information that another system does not receive.
+```text
+Restore repository
+      ↓
+Checkout exact revision
+      ↓
+Reset working tree
+      ↓
+Verify dependencies
+      ↓
+Run baseline validation
+      ↓
+Record environment
+      ↓
+Freeze starting state
+```
 
-Where possible:
+Required baseline information:
+
+- repository
+- branch/ref
+- exact commit SHA
+- working-tree state
+- baseline test result
+- runtime environment
+- hardware configuration
+
+The initial repository state must be identical for compared systems.
+
+---
+
+# 🎯 7. Agent Instructions
+
+The agent receives the same substantive task description across compared configurations.
+
+The benchmark should provide information that a normal developer would reasonably receive.
+
+Avoid giving one system additional implementation hints.
+
+The agent should be free to:
+
+- inspect files
+- search the repository
+- read documentation
+- execute tests
+- execute shell commands
+- modify files
+- inspect failures
+- iterate
+- validate its repair
+
+The operator should not manually guide the agent toward the solution.
 
 ```text
 Same repository
-+
-Same task description
-+
-Same tests
-+
-Same success criteria
+      +
+Same task
+      +
+Same validation
+      ↓
+Different local AI configuration
+      ↓
+Compare outcome + trajectory
 ```
 
-The coding agent should be allowed to independently:
-
-* inspect files
-* search the repository
-* read documentation
-* execute tests
-* execute shell commands
-* modify files
-* inspect failures
-* iterate on the implementation
-
-The benchmark should not manually guide the agent toward the solution.
-
 ---
 
-# 7. Agent Configuration
+# 🧠 8. Model Configuration
 
-Every benchmark run must record the complete coding-agent configuration.
-
-For Pi, record at minimum:
-
-* Pi version / commit
-* model configuration
-* inference endpoint
-* system prompt configuration
-* tool configuration
-* context configuration
-* sampling parameters
-* timeout configuration
-* retry configuration
-* permission configuration
-* working-directory configuration
-
-Future OpenHands experiments should record the equivalent configuration.
-
-The purpose is to prevent a benchmark result from depending on undocumented agent settings.
-
----
-
-# 8. Model Configuration
-
-The model configuration must be explicitly recorded.
-
-For the initial benchmark:
+The initial benchmark uses:
 
 > **Qwen3.6-27B**
 
+Record the exact:
+
+- model identifier
+- model revision
+- quantization
+- model format
+- context length
+- sampling parameters
+- temperature
+- top-p
+- top-k, where applicable
+- repetition settings, where applicable
+- MTP configuration
+
+The model should remain constant when the experimental question is hardware/runtime comparison.
+
+---
+
+# ⚡ 9. Inference Runtime
+
+The inference runtime is part of the experimental configuration.
+
+Current primary configurations:
+
+| Platform | Runtime |
+|---|---|
+| 🟢 Windows + RTX 5060 Ti | llama.cpp |
+| 🔵 Mac + M4 Pro | oMLX / MLX |
+
 Record:
 
-* exact model identifier
-* model revision
-* quantization
-* model format
-* context length
-* inference parameters
-* sampling parameters
-* temperature
-* top-p
-* top-k, if applicable
-* repetition settings, if applicable
-* MTP configuration, if applicable
+- runtime name
+- version/commit
+- build configuration
+- acceleration backend
+- quantization
+- context configuration
+- batching configuration
+- cache configuration
+- Flash Attention configuration
+- MTP configuration
+- other performance-relevant options
 
-The model should remain constant when comparing hardware or inference-runtime configurations whenever possible.
-
----
-
-# 9. Inference Runtime
-
-The inference runtime is considered part of the benchmark configuration.
-
-Initial configurations include:
-
-### NVIDIA / Windows
-
-```text
-llama.cpp
-```
-
-### Apple Silicon / macOS
-
-```text
-oMLX / MLX
-```
-
-The benchmark should record:
-
-* runtime name
-* runtime version
-* commit
-* build configuration
-* acceleration backend
-* quantization
-* context configuration
-* batch configuration
-* cache configuration
-* Flash Attention configuration
-* MTP configuration
-* other performance-related runtime options
-
-Runtime configuration is important because inference performance can change significantly depending on these settings.
-
-Therefore:
-
-> **A benchmark result should never be interpreted as a hardware-only result when the inference runtime differs.**
+> **A benchmark result is not a hardware-only result when the inference runtime differs.**
 
 ---
 
-# 10. Hardware Configuration
+# 💻 10. Hardware Configuration
 
 Each benchmark machine must be documented.
 
-At minimum record:
+At minimum:
 
-* CPU
-* GPU
-* GPU VRAM
-* system RAM
-* operating system
-* OS version
-* driver version
-* storage type
-* power configuration
-* thermal configuration
+- CPU
+- GPU/SoC
+- GPU VRAM or unified memory
+- system RAM
+- operating system
+- OS version
+- driver/runtime versions
+- storage
+- relevant power/thermal configuration
 
-For example:
+Current systems:
 
-```text
-Hardware
---------
-GPU: NVIDIA RTX 5060 Ti
-VRAM: 16 GB
-System RAM: 60 GB
-OS: Windows
-Runtime: llama.cpp
-Model: Qwen3.6-27B
-Agent: Pi
-```
-
-and:
+### 🟢 RTX
 
 ```text
-Hardware
---------
-CPU: Apple M4 Pro
-Unified Memory: 64 GB
-OS: macOS
-Runtime: oMLX / MLX
-Model: Qwen3.6-27B
-Agent: Pi
+NVIDIA RTX 5060 Ti
+16 GB VRAM
+Windows 11 Pro
+Intel i5-8600
+50 GB system RAM
+llama.cpp
 ```
 
-Exact versions should be captured at the time of each benchmark run.
+### 🔵 M4 Pro
+
+```text
+Apple M4 Pro
+64 GB unified memory
+macOS
+oMLX / MLX
+```
+
+The exact configuration must be captured again at each benchmark run.
 
 ---
 
-# 11. Benchmark Execution
+# 🧪 11. Benchmark Execution
 
-Each benchmark run begins from a clean repository state.
-
-The general execution sequence is:
+The standard execution lifecycle is:
 
 ```text
-Prepare Environment
-        ↓
-Checkout Benchmark Revision
-        ↓
-Verify Baseline
-        ↓
-Start Agent
-        ↓
-Provide Task
-        ↓
-Agent Investigates
-        ↓
-Agent Modifies Repository
-        ↓
-Agent Runs Tests / Tools
-        ↓
-Agent Analyzes Results
-        ↓
-Agent Iterates
-        ↓
-Final Validation
-        ↓
-Record Result
+       🧹 Prepare Environment
+                │
+                ▼
+       🔖 Checkout Revision
+                │
+                ▼
+       🧪 Verify Baseline
+                │
+                ▼
+         ⏱️ Start Timer
+                │
+                ▼
+          🤖 Start Agent
+                │
+                ▼
+          📋 Provide Task
+                │
+                ▼
+        🔎 Agent Investigates
+                │
+                ▼
+          ✏️ Agent Edits
+                │
+                ▼
+        🔧 Agent Uses Tools
+                │
+                ▼
+          🧪 Agent Tests
+                │
+          ┌─────┴─────┐
+          ▼           ▼
+        Pass        Fail
+          │           │
+          │       🔍 Diagnose
+          │           │
+          │       🔄 Recover
+          │           │
+          └─────┬─────┘
+                ▼
+          ✅ Final Validation
+                │
+                ▼
+          📦 Freeze Evidence
 ```
 
-The benchmark must capture the complete execution trajectory whenever possible.
+The full execution trajectory should be captured whenever technically possible.
 
 ---
 
-# 12. Start and End Conditions
+# ⏱️ 12. Timing Methodology
 
-## 12.1 Start
+## Start boundary
 
-The timer begins when the coding agent receives the benchmark task and begins execution.
+The benchmark timer begins when the coding agent receives the benchmark task and begins execution.
 
-The exact timing mechanism should be documented and applied consistently.
+The measured interval is:
 
-The following should not be included in the measured repair time unless explicitly defined as part of the experiment:
+```text
+START
+ │
+ ├── agent reasoning
+ ├── repository exploration
+ ├── tool calls
+ ├── code changes
+ ├── test execution
+ ├── debugging
+ └── recovery
+ │
+END
+```
 
-* model download
-* initial dependency installation
-* repository cloning
-* machine boot
-* manual environment preparation
+Normally excluded:
 
-These are infrastructure preparation costs rather than agent execution costs.
+- model download
+- initial dependency installation
+- repository cloning
+- machine boot
+- manual environment preparation
+
+These are infrastructure preparation costs unless a particular experiment explicitly includes them.
 
 ---
 
-## 12.2 Successful End
+## End boundary
 
 A successful run ends when:
 
-1. The agent has completed its repair.
-2. The repository satisfies the benchmark's validation criteria.
-3. Required tests pass.
-4. The agent's final state is recorded.
+1. the agent has completed the repair;
+2. required validation succeeds;
+3. the final repository state is captured.
 
-The benchmark should use automated validation whenever possible.
+A failed run ends when:
 
----
-
-## 12.3 Failed End
-
-A run is considered unsuccessful when:
-
-* the agent cannot complete the repair,
-* the allowed execution limit is reached,
-* the context becomes unusable,
-* the agent enters an unrecoverable loop,
-* required tests continue to fail,
-* the agent produces an invalid implementation,
-* or the benchmark's maximum runtime is exceeded.
-
-Failures should be recorded rather than manually corrected.
+- the agent cannot complete the repair;
+- the execution limit is reached;
+- the agent becomes unrecoverable;
+- required validation continues to fail;
+- or the benchmark is otherwise terminated according to the predefined protocol.
 
 ---
 
-# 13. Time Limits
+# ⚠️ 13. Timing Data Integrity
 
-Each task should have a predefined maximum execution time.
+LCAB preserves both:
+
+```text
+START_TIMESTAMP
+END_TIMESTAMP
+```
+
+and derived:
+
+```text
+WALL_TIME_SECONDS
+```
+
+The timestamps are authoritative raw evidence.
+
+If a derived wall-time field is malformed or suspect, reconstruct elapsed time from the preserved start/end timestamps during processing.
+
+Do not overwrite the raw timing artifact.
+
+This is particularly important for the initial benchmark because the current raw timing collection contains incorrectly formatted elapsed-time fields.
+
+---
+
+# 🧪 14. Baseline Validation
+
+Baseline validation is essential.
+
+```text
+Baseline failure
+      ≠
+Agent-induced failure
+```
+
+Before the agent starts:
+
+1. run the relevant test command;
+2. record the command;
+3. record the exit code;
+4. record failing tests;
+5. preserve the output.
+
+A baseline failure must be reported as a benchmark anomaly rather than silently attributed to the agent.
+
+---
+
+# 🚨 15. Environment Failure vs Repair Failure
+
+Validation failures must be classified.
+
+| Result | Classification |
+|---|---|
+| Required tests pass | 🟢 Validation success |
+| Tests fail because of repair | 🔴 Repair failure |
+| Test executable unavailable | 🟡 Environment failure |
+| Baseline already fails | 🟡 Baseline failure |
+| Test infrastructure crashes | 🟡 Validation anomaly |
+| Evidence incomplete | ⚪ Incomplete |
 
 For example:
 
 ```text
-Maximum wall-clock time: TBD
+pytest: command not found
 ```
 
-The exact value should be selected before large-scale benchmarking and applied consistently.
+is not equivalent to:
 
-The benchmark should avoid extending the time limit selectively for systems that are performing poorly.
+```text
+pytest
+FAILED test_autonomous_loop.py
+```
+
+The initial Mac benchmark contains the former type of collection issue, so it must not automatically be presented as a software-repair failure.
 
 ---
 
-# 14. Primary Metrics
+# 📊 16. Primary Metrics
 
-## 14.1 Repair Success Rate
-
-The percentage of benchmark tasks successfully repaired.
+## 16.1 🏆 Repair Success Rate
 
 ```text
 Repair Success Rate =
-Successful Repairs / Total Tasks × 100
+Successful Repairs / Total Valid Runs × 100
 ```
 
-This is one of the most important quality metrics.
+This is a primary quality metric.
 
 ---
 
-## 14.2 Time to Successful Repair
+## 16.2 ⏱️ Time to Successful Repair
 
 Wall-clock time from agent start until successful validation.
 
-This measures actual end-to-end coding-agent productivity.
+For multiple runs, report:
 
-Report:
+- median
+- mean
+- minimum
+- maximum
+- percentiles when sample size supports them
 
-* mean
-* median
-* minimum
-* maximum
-* percentile values where sample size permits
-
-Median should be emphasized because a small number of very long runs can distort the mean.
+Median should receive particular attention because a small number of very long runs can distort the mean.
 
 ---
 
-## 14.3 Successful Repairs per Hour
+## 16.3 🚀 Successful Repairs per Hour
 
 A practical productivity metric:
 
@@ -544,128 +635,128 @@ A practical productivity metric:
 Successful Repairs / Hour
 ```
 
-This can provide an intuitive comparison between systems.
-
-It should always be presented together with the underlying success rate and repair-time measurements.
+This should always be presented alongside success rate and repair time.
 
 ---
 
-# 15. Secondary Metrics
+# 🧮 17. Secondary Metrics
 
-## 15.1 Token Consumption
+## Token consumption
 
 Record:
 
-* input tokens
-* output tokens
-* total tokens
-* tokens per model call
-* tokens per successful repair
+- input tokens
+- output tokens
+- total tokens
+- tokens per model call
+- tokens per successful repair
 
-This helps determine whether a system achieves better results because it is genuinely more efficient or simply because it consumes more inference.
+Token consumption helps explain the computational cost of a repair.
 
 ---
 
-## 15.2 Generation Throughput
+## Inference throughput
 
-Record:
+Record where available:
 
-* generation tokens/sec
-* prompt-processing tokens/sec
+- prompt-processing tokens/sec
+- generation tokens/sec
 
-These are important model/runtime measurements but are **not the primary benchmark outcome**.
+These are **model/runtime metrics**, not the primary software-engineering outcome.
 
-The benchmark explicitly distinguishes:
+LCAB explicitly distinguishes:
 
-> **Model throughput**
+```text
+⚡ Model throughput
+```
 
 from:
 
-> **End-to-end coding-agent performance**
+```text
+🔧 End-to-end coding-agent performance
+```
 
 ---
 
-## 15.3 Model Calls
+## Model calls
 
 Record:
 
-* total model calls
-* successful calls
-* failed calls
-* retries
-* calls before first tool action
-* calls before successful repair
-
-This helps characterize agent behavior.
+- total model calls
+- successful calls
+- failed calls
+- retries
+- calls before first useful tool action
+- calls before successful repair
 
 ---
 
-## 15.4 Tool Calls
+## Tool calls
 
 Record:
 
-* total tool calls
-* shell commands
-* file reads
-* file searches
-* test executions
-* file modifications
-* other available tool operations
+- total tool calls
+- shell commands
+- file reads
+- searches
+- test executions
+- file modifications
+- other available tool operations
 
-Tool-call counts can help explain why two agents with identical models produce different end-to-end performance.
+Tool-call counts can explain differences between systems using the same model.
 
 ---
 
-# 16. Agent Behavior Metrics
+# 🤖 18. Agent-Trajectory Metrics
 
-The benchmark should capture the agent's trajectory where technically possible.
+The agent session is part of the benchmark evidence.
 
-Important measurements include:
+Useful trajectory measurements include:
 
-### Time to First Useful Action
+### 🔎 Time to first useful action
 
-How long the agent spends reasoning before taking its first meaningful repository action.
+How long the agent spends before performing a meaningful repository action.
 
-### Iteration Count
+### 🔄 Iteration count
 
 Number of meaningful repair iterations.
 
-### Test Attempts
+### 🧪 Test attempts
 
-Number of times tests are executed during the repair.
+Number of test executions.
 
-### Recovery Events
+### 🛠️ Recovery events
 
-Number of times the agent encounters a failure and successfully recovers.
+Failures followed by successful diagnosis/recovery.
 
-### Failed Trajectories
+### 🔁 Failed trajectories
 
-Runs where the agent becomes stuck, repeatedly performs ineffective actions, or otherwise fails to converge.
+Repeated ineffective actions, loops, or failure to converge.
 
-### Context Resets
+### 📚 Context behavior
 
-Number of times the agent must restart or reset its working context.
+Context growth, compaction, reset, or other context-management events where available.
 
-These measurements become particularly important when comparing different coding-agent architectures.
+This layer becomes especially important when comparing Pi with future OpenHands runs.
 
 ---
 
-# 17. Software Repair Quality
+# 🧪 19. Software-Repair Quality
 
-A successful test run is necessary but may not always be sufficient to determine patch quality.
+Passing the immediate test suite is necessary but should not automatically be treated as proof of perfect patch quality.
 
-Where appropriate, evaluate:
+Where appropriate, inspect:
 
-* required tests passing
-* existing regression tests passing
-* unintended behavior changes
-* unnecessary code modifications
-* modification scope
-* code quality
-* maintainability
-* test coverage changes
+- required tests
+- regression tests
+- unintended behavior changes
+- unrelated modifications
+- modification scope
+- code quality
+- maintainability
+- test coverage
 
-The benchmark should distinguish:
+Distinguish:
 
 ```text
 Functional Success
@@ -677,723 +768,630 @@ from:
 Patch Quality
 ```
 
-A patch that passes the immediate test but introduces unrelated regressions should not receive the same qualitative assessment as a clean repair.
+A patch that passes the target test while introducing unrelated regressions should not receive the same qualitative interpretation as a clean repair.
 
 ---
 
-# 18. Resource Measurements
+# 💾 20. Resource Measurements
 
-Where practical, collect:
+Where practical, capture:
 
-* peak GPU VRAM
-* peak system RAM
-* GPU utilization
-* CPU utilization
-* memory pressure
-* power consumption
-* energy consumed
+- peak GPU VRAM
+- peak system RAM
+- GPU utilization
+- CPU utilization
+- memory pressure
+- power consumption
+- energy consumed
 
-Resource measurements should be reported separately from repair quality.
-
-For example:
+Report resources separately from repair quality.
 
 ```text
-System A:
-    Faster repair
-    Higher memory usage
+System A
+  ├── Faster repair
+  └── Higher memory use
 
-System B:
-    Slower repair
-    Lower memory usage
+System B
+  ├── Slower repair
+  └── Lower memory use
 ```
 
-Both facts are useful, but they should not be collapsed into a single unexplained score.
+Both observations are useful; neither should be hidden inside an unexplained composite score.
 
 ---
 
-# 19. Controlling Variables
+# 🎛️ 21. Controlling Variables
 
-The benchmark should keep the following constant whenever the experimental question allows it:
+For a controlled comparison, keep constant whenever possible:
 
-* repository
-* repository revision
-* task description
-* model
-* model revision
-* quantization
-* coding-agent instructions
-* benchmark validation
-* maximum runtime
-* sampling parameters
+- repository
+- repository revision
+- task description
+- model
+- model revision
+- quantization
+- agent instructions
+- validation procedure
+- maximum runtime
+- relevant sampling settings
 
-Variables intentionally being tested may change.
+Change only the variable being studied.
 
-For example, a hardware comparison may change:
+For the primary hardware/runtime comparison:
 
 ```text
+                Controlled
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+       Task       Model        Agent
+        │           │           │
+        └───────────┼───────────┘
+                    │
+                    ▼
+              Experimental
+                 variables
+                    │
+              ┌─────┴─────┐
+              ▼           ▼
+           Hardware     Runtime
+```
+
+---
+
+# 🧪 22. Experimental Dimensions
+
+LCAB should explicitly declare the variable under investigation.
+
+## Hardware experiment
+
+```text
+Variable:
 Hardware
-Inference Runtime
+
+Prefer constant:
+Model
+Agent
+Workload
+Context
+Runtime, where technically possible
 ```
 
-while keeping:
+## Runtime experiment
 
 ```text
+Variable:
+Inference runtime
+
+Prefer constant:
+Hardware
 Model
 Agent
 Workload
 ```
 
-constant.
-
----
-
-# 20. Experimental Dimensions
-
-The benchmark should clearly identify which variable is being investigated.
-
-Examples:
-
-## Hardware Experiment
+## Agent experiment
 
 ```text
 Variable:
-Hardware
+Coding agent
 
-Constant:
+Prefer constant:
+Hardware
 Model
-Agent
-Runtime where possible
+Runtime
 Workload
 ```
 
-## Runtime Experiment
-
-```text
-Variable:
-Inference Runtime
-
-Constant:
-Hardware
-Model
-Agent
-Workload
-```
-
-## Agent Experiment
-
-```text
-Variable:
-Coding Agent
-
-Constant:
-Hardware
-Model
-Workload
-```
-
-## Model Experiment
+## Model experiment
 
 ```text
 Variable:
 Model
 
-Constant:
+Prefer constant:
 Hardware
 Runtime
 Agent
 Workload
 ```
 
-This prevents accidental conclusions caused by changing several variables simultaneously.
+This prevents accidental conclusions caused by changing multiple factors simultaneously.
 
 ---
 
-# 21. Repeated Runs
+# 🔁 23. Repeated Runs
 
-LLM-based agents are nondeterministic.
+LLM-based coding agents are nondeterministic.
 
-Therefore, a single successful or unsuccessful run should not normally be treated as definitive evidence.
+Therefore:
 
-For important comparisons, run each task multiple times when practical.
+> **One successful or unsuccessful run should not normally be treated as definitive evidence.**
 
-For example:
+For important comparisons, execute each task multiple times when practical.
+
+Example:
 
 ```text
 Task 01
-    Run 1
-    Run 2
-    Run 3
+ ├── Run 1
+ ├── Run 2
+ └── Run 3
 
 Task 02
-    Run 1
-    Run 2
-    Run 3
-
-...
+ ├── Run 1
+ ├── Run 2
+ └── Run 3
 ```
 
-Report both:
+Report:
 
-* per-run results
-* aggregate results
+- per-run results
+- aggregate results
+- variance where appropriate
 
-Where sample size permits, report variance or confidence intervals.
-
----
-
-# 22. Determinism
-
-The benchmark should distinguish between:
-
-### Deterministic components
-
-* repository revision
-* test suite
-* benchmark task
-* validation procedure
-* hardware configuration
-
-and:
-
-### Nondeterministic components
-
-* model generation
-* agent decisions
-* tool ordering where applicable
-* recovery behavior
-
-Random seeds should be fixed where supported.
-
-If a component cannot be made deterministic, the benchmark should document that limitation rather than claiming exact reproducibility.
+As the benchmark grows, confidence intervals or other uncertainty estimates can be added.
 
 ---
 
-# 23. Benchmark Run Record
+# 🎲 24. Determinism
 
-Every run should produce a machine-readable record.
+Distinguish between deterministic and nondeterministic components.
 
-A conceptual record may contain:
+### More deterministic
 
-```json
-{
-  "task_id": "example-001",
-  "agent": "pi",
-  "model": "Qwen3.6-27B",
-  "runtime": "llama.cpp",
-  "hardware": "RTX 5060 Ti 16GB",
-  "os": "Windows",
-  "success": true,
-  "wall_clock_seconds": 1234,
-  "input_tokens": 100000,
-  "output_tokens": 12000,
-  "generation_tok_per_sec": 45.2,
-  "model_calls": 18,
-  "tool_calls": 37,
-  "test_attempts": 4,
-  "peak_vram_gb": 15.2
-}
-```
+- repository revision
+- task
+- test suite
+- validation procedure
+- hardware
+- runtime configuration
 
-The exact schema will evolve as the benchmark implementation develops.
+### Potentially nondeterministic
+
+- model generation
+- agent decisions
+- tool ordering
+- recovery behavior
+
+Fix random seeds where supported.
+
+If a component cannot be made deterministic, document that limitation rather than claiming exact reproducibility.
 
 ---
 
-# 24. Raw Data
+# 📦 25. Run Evidence Package
 
-Raw benchmark data should be retained.
+Every run should produce an immutable raw evidence package.
 
-Do not publish only aggregated numbers.
-
-Whenever possible, preserve:
-
-* raw agent logs
-* model usage statistics
-* tool-call logs
-* test results
-* timing data
-* system metrics
-* final patches
-* benchmark metadata
-
-This allows independent analysis and helps identify anomalies.
-
----
-
-# 25. Result Aggregation
-
-Results should be aggregated at multiple levels.
-
-## Task Level
+Recommended structure:
 
 ```text
-Task → individual run
+results/raw/<RUN_ID>/
+│
+├── metadata.txt
+├── git-before.txt
+├── diff-before.patch
+│
+├── pi-version.txt
+├── timing.txt
+│
+├── pi-session/
+├── pi-session.jsonl
+├── pi-session.html
+│
+├── tests.txt
+├── git-after.txt
+├── diff.patch
+│
+└── anomalies.md
 ```
 
-## System Level
+Not every artifact is mandatory for every future agent, but the principle is:
 
-```text
-System → all tasks
-```
-
-## Workload Level
-
-```text
-Workload category → all applicable tasks
-```
-
-This allows questions such as:
-
-> Does the RTX configuration perform better overall?
-
-and:
-
-> Does it perform better specifically on multi-file debugging tasks?
+> **Preserve raw evidence before processing it.**
 
 ---
 
-# 26. Outlier Handling
+# 🧾 26. Machine-Readable Run Record
 
-Outliers should not be silently removed.
-
-Potential causes include:
-
-* transient system load
-* network problems
-* dependency installation issues
-* runtime crashes
-* agent loops
-* model server failures
-* unexpected repository behavior
-
-Every excluded run should have a documented reason.
-
-The default approach should be:
-
-> **Keep the raw observation and explain the anomaly.**
-
----
-
-# 27. Failure Classification
-
-Failed runs should be classified when possible.
-
-Suggested categories:
-
-```text
-MODEL_FAILURE
-AGENT_FAILURE
-TOOL_FAILURE
-CONTEXT_LIMIT
-RUNTIME_FAILURE
-TEST_FAILURE
-TIMEOUT
-RESOURCE_LIMIT
-ENVIRONMENT_FAILURE
-UNKNOWN
-```
-
-This is especially important for local systems because a failure may not indicate a weakness in the underlying model.
-
-For example:
-
-```text
-Context limit exceeded
-```
-
-is materially different from:
-
-```text
-Model generated an incorrect repair
-```
-
----
-
-# 28. Context Limit Analysis
-
-Context length is an important variable for local coding agents.
-
-The benchmark should record:
-
-* configured context length
-* peak context usage
-* context usage at failure
-* number of context resets
-* whether context exhaustion caused failure
-* time spent processing large contexts
-
-This enables future experiments such as:
-
-> **How does context length affect real software-repair success?**
-
----
-
-# 29. MTP Analysis
-
-If Multi-Token Prediction (MTP) is enabled, record it explicitly.
-
-Compare:
-
-```text
-MTP Enabled
-```
-
-versus:
-
-```text
-MTP Disabled
-```
-
-when conducting an MTP experiment.
-
-Measure:
-
-* generation throughput
-* total tokens
-* wall-clock repair time
-* model calls
-* repair success rate
-* resource consumption
-
-The key question is not simply:
-
-> Did MTP increase tokens/sec?
-
-but:
-
-> **Did MTP improve real end-to-end coding-agent performance?**
-
----
-
-# 30. Agent Comparison: Pi vs OpenHands
-
-When OpenHands is introduced, the benchmark should reuse the same workload definitions.
+A processed run should have a stable schema.
 
 Conceptually:
 
-```text
-                    Same Task
-                       │
-            ┌──────────┴──────────┐
-            ▼                     ▼
-           Pi                OpenHands
-            │                     │
-            ▼                     ▼
-      Same Model              Same Model
-            │                     │
-            ▼                     ▼
-       Same Hardware          Same Hardware
-            │                     │
-            ▼                     ▼
-        Same Tests             Same Tests
-            │                     │
-            └──────────┬──────────┘
-                       ▼
-                 Compare Results
+```json
+{
+  "run_id": "20260813-064832-task01-mac-m4-omlx",
+  "task_id": "task01",
+  "agent": "pi",
+  "agent_version": "0.84.1",
+  "model": "Qwen3.6-27B",
+  "runtime": "oMLX/MLX",
+  "hardware": "Apple M4 Pro 64GB",
+  "context_window": 55000,
+  "mtp": true,
+  "success": true,
+  "wall_clock_seconds": 0,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "tool_calls": 0,
+  "model_calls": 0,
+  "tests_passed": 0,
+  "tests_failed": 0
+}
 ```
 
-However, the benchmark should recognize that Pi and OpenHands may have fundamentally different agent architectures.
+The actual values must come from raw evidence.
 
-Therefore, the goal is not to force identical internal behavior.
-
-Instead, compare their externally observable outcomes under equivalent task conditions.
+Do not invent missing metrics.
 
 ---
 
-# 31. Cross-Agent Fairness
+# 🏷️ 27. Run Status
 
-When comparing Pi and OpenHands:
+Use a controlled vocabulary:
 
-* use the same repository revision
-* use the same task description
-* use the same model where possible
-* use equivalent context limits
-* use equivalent execution limits
-* use equivalent tool permissions
-* use equivalent validation criteria
+| Status | Meaning |
+|---|---|
+| 🟢 `SUCCESS` | Repair completed and validation passed |
+| 🔴 `FAILURE` | Repair failed |
+| 🟠 `TIMEOUT` | Maximum execution time reached |
+| 🟡 `ENVIRONMENT_FAILURE` | Environment prevented valid validation |
+| 🟡 `BASELINE_FAILURE` | Baseline was already failing |
+| ⚪ `INCOMPLETE` | Evidence package incomplete |
+| ⚫ `INVALID_FOR_COMPARISON` | Experimental protocol violated |
 
-Agent-specific configuration should remain native to each agent where necessary.
+A failed or invalid run should **not be deleted**.
 
-The benchmark should document any unavoidable differences.
-
----
-
-# 32. What the Benchmark Does Not Claim
-
-The benchmark does **not** attempt to establish that:
-
-* one GPU is universally faster than another
-* one CPU is universally better for AI
-* one inference runtime is universally superior
-* one coding agent is universally superior
-* one model is universally better
-* benchmark results apply to every repository
-* a single run represents general model capability
-
-Instead, results should be interpreted as:
-
-> **Performance of a specific local coding-agent configuration on a defined real-world software-repair workload.**
+Preserve it and explain why it is not suitable for a particular comparison.
 
 ---
 
-# 33. Primary Reporting Format
+# 🔍 28. Evidence Hierarchy
 
-A benchmark report should prioritize results in this order:
-
-### 1. Repair Success
+When derived results and raw evidence disagree, use this hierarchy:
 
 ```text
-Did the agent solve the task?
+1. Raw repository state
+          ↓
+2. Raw agent session
+          ↓
+3. Raw command output
+          ↓
+4. Run metadata
+          ↓
+5. Processed metrics
+          ↓
+6. Human interpretation
 ```
 
-### 2. Time to Success
-
-```text
-How long did it take?
-```
-
-### 3. Repair Efficiency
-
-```text
-How many successful repairs can the system perform per unit time?
-```
-
-### 4. Resource Consumption
-
-```text
-How much compute and memory did it require?
-```
-
-### 5. Agent Behavior
-
-```text
-How many tokens, calls, iterations, and recoveries were required?
-```
-
-### 6. Model Throughput
-
-```text
-How fast did the inference engine generate tokens?
-```
-
-This ordering is intentional.
+Derived data must never overwrite raw evidence.
 
 ---
 
-# 34. Example Benchmark Summary
+# 📊 29. Processing Raw Results
 
-A published experiment might ultimately look like:
+The processing pipeline should be:
 
-| Metric                  | RTX 5060 Ti + Pi | M4 Pro + Pi |
-| ----------------------- | ---------------: | ----------: |
-| Tasks                   |               20 |          20 |
-| Successful repairs      |               17 |          15 |
-| Success rate            |              85% |         75% |
-| Median repair time      |          8.4 min |    10.1 min |
-| Successful repairs/hour |              6.1 |         4.8 |
-| Median output tokens    |            9,200 |       8,700 |
-| Generation tok/s        |               48 |          32 |
-| Median model calls      |               16 |          18 |
-| Median tool calls       |               31 |          34 |
-| Peak memory             |              TBD |         TBD |
+```text
+results/raw/
+      │
+      ▼
+Parse + Validate
+      │
+      ▼
+Normalize
+      │
+      ▼
+Classify
+      │
+      ▼
+results/processed/
+      │
+      ▼
+Charts / Tables
+      │
+      ▼
+Publication
+```
 
-The numbers above are **illustrative only** and must not be treated as benchmark results.
-
----
-
-# 35. Reporting Negative Results
-
-Negative results are valuable.
-
-If an optimization increases generation throughput but does not reduce end-to-end repair time, report it.
+The raw run directory remains unchanged.
 
 For example:
 
 ```text
-MTP increased generation throughput by X%
+results/raw/
+  20260813-064832-task01-mac-m4-omlx/
 
-but:
-
-Median repair time changed by Y%
-Repair success changed by Z%
+results/processed/
+  task01-mac-m4-omlx.json
 ```
 
-This is more informative than reporting only the improvement in tokens/sec.
+The processed record must retain the original `run_id`.
 
 ---
 
-# 36. Reproducibility Checklist
+# ⚖️ 30. Primary RTX vs M4 Experiment
 
-Before publishing a benchmark result, verify that the following are available:
+The initial comparison is:
 
-* [ ] Hardware configuration
-* [ ] Operating system version
-* [ ] GPU driver version
-* [ ] Inference runtime version
-* [ ] Runtime configuration
-* [ ] Model identifier
-* [ ] Model revision
-* [ ] Quantization
-* [ ] Context configuration
-* [ ] Sampling configuration
-* [ ] Coding-agent version
-* [ ] Coding-agent configuration
-* [ ] Repository commit
-* [ ] Benchmark task definition
-* [ ] Validation procedure
-* [ ] Maximum execution time
-* [ ] Raw results
-* [ ] Final success/failure state
-* [ ] Relevant logs
-* [ ] Known anomalies
+```text
+                    Same Task 01
+                         │
+                         ▼
+                  Same baseline
+                         │
+                         ▼
+                  Qwen3.6-27B
+                         │
+                         ▼
+                       Pi
+                         │
+              ┌──────────┴──────────┐
+              ▼                     ▼
+       🟢 RTX 5060 Ti          🔵 M4 Pro
+       Windows 11 Pro            macOS
+       llama.cpp                 oMLX / MLX
+       16 GB VRAM                64 GB unified
+       55K context               55K context
+              │                     │
+              └──────────┬──────────┘
+                         ▼
+                    Compare
+```
+
+The primary comparison should focus on:
+
+1. repair outcome;
+2. wall-clock repair time;
+3. test/validation result;
+4. agent trajectory;
+5. token consumption;
+6. model/tool call behavior;
+7. resource usage.
 
 ---
 
-# 37. Benchmark Evolution
+# 🧭 31. Current Task 01 Experimental Boundary
 
-The benchmark will evolve in stages.
+Task 01 is a real multi-file software-repair workload involving:
 
-## Phase 1 — Pi
+- autonomous optimization-loop behavior;
+- parameter propagation;
+- workflow sidecar mapping;
+- iteration state;
+- regression tests;
+- validation.
 
-Current focus:
+The primary comparison uses the common baseline:
 
 ```text
-Pi
-+
-Qwen3.6-27B
-+
-Local inference
-+
-Real software-repair workloads
+9ab2b50bc2ceca42b4a225aef7b9669d3c88c4f7
 ```
 
-The initial experiments focus on comparing local hardware/runtime configurations.
+Primary benchmark branches:
+
+```text
+benchmark/task9-rtx5060ti-mtp
+benchmark/task9-m4pro-omlx-mtp-55k
+```
+
+Separate exploratory branch:
+
+```text
+benchmark/task9-m4pro-omlx-mtp-unlimited
+```
+
+The 55K RTX/M4 pair is the primary hardware/runtime comparison.
 
 ---
 
-## Phase 2 — Expanded Pi Experiments
+# ⚠️ 32. Known Limitations of the Current Dataset
 
-Potential experiments:
+The initial benchmark should be presented transparently.
+
+### Timing
+
+Raw timing files preserve timestamps, but the derived elapsed-time fields are not reliable enough to use blindly.
+
+**Method:** reconstruct elapsed time from preserved start/end timestamps.
+
+### Mac test collection
+
+The current Mac test artifact contains:
 
 ```text
-MTP
-Context Length
-Quantization
-Runtime Configuration
-Agent Configuration
-Failure Recovery
+pytest: command not found
+```
+
+This is an environment/collection issue.
+
+It should be reported separately from software-repair correctness.
+
+### Sample size
+
+The current experiment is small.
+
+Therefore, results should be described as:
+
+> **an initial real-workload benchmark**
+
+rather than a statistically comprehensive characterization of the hardware/runtime landscape.
+
+---
+
+# 📜 33. Publication Standard
+
+Before a metric appears in:
+
+- GitHub README
+- benchmark report
+- Hugging Face
+- Reddit
+- Hacker News
+- X
+- LinkedIn
+- research notes
+
+it should be traceable:
+
+```text
+Published claim
+      │
+      ▼
+Processed metric
+      │
+      ▼
+Run ID
+      │
+      ▼
+Raw evidence
+      │
+      ├── session
+      ├── timing
+      ├── tests
+      └── final patch
+      │
+      ▼
+Original repository state
+```
+
+> **If a published number cannot be traced back to raw evidence, it is not yet a benchmark result.**
+
+---
+
+# 🔬 34. Interpretation Rules
+
+LCAB should avoid claims stronger than the experiment supports.
+
+### Supported example
+
+> “On this Task 01 workload, the tested M4 Pro + oMLX configuration completed the repair faster than the tested RTX 5060 Ti + llama.cpp configuration.”
+
+### Unsupported leap
+
+> “M4 Pro is faster than RTX 5060 Ti for coding agents.”
+
+The second statement requires substantially more controlled workloads and repeated measurements.
+
+Likewise:
+
+```text
+Observed:
+M4 Pro + oMLX > RTX + llama.cpp
+```
+
+does not automatically imply:
+
+```text
+M4 Pro hardware > RTX hardware
+```
+
+because runtime, model format, operating system, memory architecture, and other configuration details participate in the observed result.
+
+---
+
+# 🧪 35. Quality-Control Checklist
+
+Before accepting a comparison:
+
+```text
+☐ Same task
+☐ Same task instructions
+☐ Same baseline revision
+☐ Same model family
+☐ Same model revision where possible
+☐ Context size verified
+☐ MTP verified
+☐ Agent version verified
+☐ Runtime versions recorded
+☐ Hardware recorded
+☐ Baseline validation recorded
+☐ Start/end timestamps preserved
+☐ Timing independently verified
+☐ Test output preserved
+☐ Final patch preserved
+☐ Agent session preserved
+☐ Environment anomalies classified
+☐ Raw evidence immutable
+☐ Derived metrics traceable
+☐ Claims limited to measured evidence
 ```
 
 ---
 
-## Phase 3 — OpenHands
+# 🌱 36. Future Expansion
 
-Introduce:
+The methodology is designed to grow from the current experiment into a broader benchmark.
+
+Potential dimensions:
 
 ```text
-OpenHands
-+
-Same Benchmark Workloads
-+
-Same Models
-+
-Comparable Local Hardware
+                    LCAB
+                     │
+       ┌─────────────┼─────────────┐
+       ▼             ▼             ▼
+    Hardware       Runtime       Agent
+       │             │             │
+   RTX / Mac     llama.cpp       Pi
+   Future GPUs   MLX/oMLX     OpenHands
+       │             │             │
+       └─────────────┼─────────────┘
+                     ▼
+                   Model
+                     │
+               Qwen / future
+                     │
+                     ▼
+                  Tasks
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+        Bug       Feature    Integration
+          │          │          │
+          └──────────┼──────────┘
+                     ▼
+                 Validation
+                     │
+                     ▼
+                📊 Benchmark
 ```
 
-This enables direct study of how coding-agent architecture affects local software-repair performance.
+This structure allows future experiments without changing the fundamental methodology.
 
 ---
 
-## Phase 4 — Broader Benchmark
+# 🎯 37. Core Principle
 
-Potential future dimensions:
+LCAB is not intended to answer:
 
-```text
-Multiple Models
-Multiple Agents
-Multiple Runtimes
-Multiple GPUs
-Multiple Apple Silicon Systems
-Multiple Repository Types
-Multiple Task Difficulties
-```
+> **“Which GPU is fastest?”**
 
-The benchmark should retain the same core task and measurement definitions as it expands.
+It is intended to answer:
 
----
+> **“Which local AI coding-agent configuration can solve real software-engineering problems effectively, reliably, and efficiently?”**
 
-# 38. Core Principle
-
-The benchmark can be summarized by one principle:
-
-> **Measure what the developer ultimately cares about: successful software repair.**
-
-Tokens per second, prompt processing speed, memory usage, context size, MTP performance, and hardware utilization are all valuable measurements.
-
-But they are supporting measurements.
-
-The primary outcome is:
+That distinction is central to the benchmark.
 
 ```text
-                    Real Task
-                       ↓
-                  Coding Agent
-                       ↓
-                  Investigation
-                       ↓
-                   Iteration
-                       ↓
-                    Testing
-                       ↓
-                  Successful
-                    Repair
-                       ↓
-                Time + Quality
+⚡ Token Speed
+      +
+🧠 Model Capability
+      +
+🤖 Agent Architecture
+      +
+🔧 Tool Use
+      +
+📚 Context Management
+      +
+💻 Hardware
+      +
+⚙️ Runtime
+      +
+🧪 Validation
+      │
+      ▼
+🏆 Real Software-Engineering Performance
 ```
 
-The benchmark therefore treats:
-
-> **End-to-end successful software repair**
-
-as the central measure of local coding-agent performance.
-
----
-
-# 39. Research Direction
-
-The long-term objective is to build a practical benchmark for answering:
-
-> **What combination of model, coding agent, inference runtime, and consumer hardware provides the best local software-engineering performance?**
-
-The benchmark begins with:
-
-```text
-Pi
-+
-Qwen3.6-27B
-+
-llama.cpp / MLX
-+
-RTX 5060 Ti / M4 Pro
-+
-Real Software Repairs
-```
-
-and is designed to expand to:
-
-```text
-Pi
-OpenHands
-Other Coding Agents
-        +
-Multiple Models
-        +
-Multiple Runtimes
-        +
-Multiple Hardware Platforms
-        +
-Real Software-Repair Workloads
-```
-
-The benchmark's purpose is not to produce a single permanent winner.
-
-It is to provide **transparent, reproducible evidence about what actually makes a local coding agent effective.**
+The benchmark's strongest evidence therefore comes from the **complete repair trajectory and validated outcome**, not from a single inference-throughput number.
