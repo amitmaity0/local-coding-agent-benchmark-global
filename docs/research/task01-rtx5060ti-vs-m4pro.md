@@ -63,18 +63,46 @@ But the more interesting finding is that the two agents converged on essentially
 This suggests that **real coding-agent performance is an end-to-end systems property** involving hardware, inference runtime, context processing, agent trajectory, tool interaction, and validation—not simply model tokens/second.
 
 ---
+
 ## 📚 Contents
 
 - [Why benchmark coding agents with real repairs?](#1-why-benchmark-coding-agents-with-real-repairs)
-- [LCAB measurement model](#2-the-lcab-measurement-model)
+- [The LCAB measurement model](#2-the-lcab-measurement-model)
 - [Experimental setup](#3-experimental-setup)
-- [The workload](#4-the-workload-a-real-aivideooptimizationapp-repair)
-- [Headline result](#5-the-headline-result)
-- [Agent trajectory](#6-but-the-clock-is-only-part-of-the-story)
-- [Cache Behavior](#7-cache-behavior)
-- [Did both agents actually solve the same problem?](#8-did-both-agents-actually-solve-the-same-problem?)
+  - [Common agent and workload](#31-common-agent-and-workload)
+  - [Windows + RTX 5060 Ti](#32-windows--rtx-5060-ti)
+  - [macOS + M4 Pro](#33-macos--m4-pro)
+  - [An important experimental boundary](#34-an-important-experimental-boundary)
+- [The workload: a real ai_video_optimization_app repair](#4-the-workload-a-real-aivideooptimizationapp-repair)
+- [The headline result](#5-the-headline-result)
+- [But the clock is only part of the story](#6-but-the-clock-is-only-part-of-the-story)
+  - [More interactions](#61-more-interactions)
+  - [Almost twice the input context](#62-almost-twice-the-input-context)
+  - [Output volume was surprisingly similar](#63-output-volume-was-surprisingly-similar)
+- [Cache behavior](#7-cache-behavior)
+- [Did both agents actually solve the same problem?](#8-did-both-agents-actually-solve-the-same-problem)
 - [Solution quality vs trajectory efficiency](#9-solution-quality-vs-trajectory-efficiency)
+- [Validation](#10-validation)
+- [Why the 3.83× result should not be over-interpreted](#11-why-the-383-result-should-not-be-over-interpreted)
+- [Why the trajectory difference matters](#12-why-the-trajectory-difference-matters)
+- [A useful way to think about coding-agent efficiency](#13-a-useful-way-to-think-about-coding-agent-efficiency)
+- [What would make the next experiment stronger?](#14-what-would-make-the-next-experiment-stronger)
+  - [Experiment A — Repeatability](#experiment-a--repeatability)
+  - [Experiment B — Context scaling](#experiment-b--context-scaling)
+  - [Experiment C — Per-turn trajectory analysis](#experiment-c--per-turn-trajectory-analysis)
+  - [Experiment D — Runtime isolation](#experiment-d--runtime-isolation)
+- [The next-generation LCAB data model](#15-the-next-generation-lcab-data-model)
+- [What this benchmark does establish](#16-what-this-benchmark-does-establish)
+- [What this benchmark does not establish](#17-what-this-benchmark-does-not-establish)
+- [The broader research question](#18-the-broader-research-question)
+- [Reproducibility](#19-reproducibility)
+- [Lessons from the first experiment](#20-lessons-from-the-first-experiment)
+- [Final takeaway](#21-final-takeaway)
+- [Appendix A — Task 01 result snapshot](#appendix-a--task-01-result-snapshot)
+- [Appendix B — Evidence boundary](#appendix-b--evidence-boundary)
+- [Appendix C — Model attribution & credits](#appendix-c--model-attribution--credits)
 
+---
 
 ## 1. Why benchmark coding agents with real repairs?
 
