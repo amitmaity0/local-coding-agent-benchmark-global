@@ -1,4 +1,5 @@
 ---
+layout: default
 title: "Benchmarking Local Coding Agents on Real Software Repairs: RTX 5060 Ti vs M4 Pro at 55K Context"
 description: "An end-to-end benchmark of Pi + Qwen3.6-27B on a real ai_video_optimization_app repair workload, comparing Windows + RTX 5060 Ti + llama.cpp with macOS + M4 Pro + oMLX."
 tags:
@@ -12,7 +13,6 @@ tags:
   - inference
 ---
 
-# Benchmarking Local Coding Agents on Real Software Repairs: RTX 5060 Ti vs M4 Pro at 55K Context
 
 > **A real software-repair benchmark of Pi + Qwen3.6-27B running locally on two very different machines.**
 
@@ -20,9 +20,6 @@ tags:
 
 Local LLM benchmarking usually starts with a familiar question:
 
-> ⚠️ **Experimental status**
->
-> This is the first LCAB real-workload experiment and currently represents **one software-repair task and one recorded run per configuration**. The result is an initial systems comparison, not a statistically general hardware ranking.
 
 > **How many tokens per second can this machine generate?**
 
@@ -61,6 +58,13 @@ The observed wall-clock ratio was approximately **3.83×** in favor of the RTX c
 But the more interesting finding is that the two agents converged on essentially the same engineering solution while taking very different paths to get there.
 
 This suggests that **real coding-agent performance is an end-to-end systems property** involving hardware, inference runtime, context processing, agent trajectory, tool interaction, and validation—not simply model tokens/second.
+
+
+> ⚠️ **Experimental status**
+>
+> This is the first LCAB real-workload experiment and currently represents **one software-repair task and one recorded run per configuration**. The result is an initial systems comparison, not a statistically general hardware ranking.
+
+---
 
 ---
 
@@ -103,8 +107,9 @@ This suggests that **real coding-agent performance is an end-to-end systems prop
   - [Lesson 4 — Separate observation from explanation](#lesson-4--separate-observation-from-explanation)
 - [21. Final takeaway](#21-final-takeaway)
 - [Appendix A — Task 01 result snapshot](#appendix-a--task-01-result-snapshot)
-- [Model Attribution & Credits](#model-attribution--credits)
-- [Appendix B — Evidence boundary](#appendix-b--evidence-boundary)
+- [Appendix B — Model Attribution & Credits](#appendix-b--model-attribution--credits)
+- [Appendix C — Evidence boundary](#appendix-c--evidence-boundary)
+- [Appendix D — Project documentation](#appendix-d--project-documentation)
 
 ---
 
@@ -177,7 +182,7 @@ That is the motivation behind the **Local Coding Agent Benchmark (LCAB)** projec
 
 ---
 
-# 2. The LCAB measurement model
+## 2. The LCAB measurement model
 
 LCAB treats a coding-agent benchmark as a stack rather than a single number.
 
@@ -215,9 +220,9 @@ Instead, the benchmark preserves the underlying measurements so that readers can
 
 ---
 
-# 3. Experimental setup
+## 3. Experimental setup
 
-## 3.1 Common agent and workload
+### 3.1 Common agent and workload
 
 Both systems used:
 
@@ -241,7 +246,7 @@ Project repository:
 
 ---
 
-## 3.2 Windows + RTX 5060 Ti
+### 3.2 Windows + RTX 5060 Ti
 
 ```text
 Windows 11
@@ -274,7 +279,7 @@ Qwen3.6-27B-MTP-4.5bpw-pure.gguf
 
 ---
 
-## 3.3 macOS + M4 Pro
+### 3.3 macOS + M4 Pro
 
 ```text
 macOS
@@ -304,7 +309,7 @@ Qwen3.6-27B-oQ4-MTP
 
 ---
 
-## 3.4 An important experimental boundary
+### 3.4 An important experimental boundary
 
 This is a comparison of **complete configurations**.
 
@@ -336,7 +341,7 @@ That distinction is important.
 
 ---
 
-# 4. The workload: a real ai_video_optimization_app repair
+## 4. The workload: a real ai_video_optimization_app repair
 
 The benchmark is based on a real software-repair task in ai_video_optimization_app rather than a synthetic coding prompt.
 
@@ -378,7 +383,7 @@ This makes the workload useful as a coding-agent benchmark because the agent mus
 
 ---
 
-# 5. The headline result
+## 5. The headline result
 
 The recorded elapsed times were:
 
@@ -418,7 +423,7 @@ This is the primary end-to-end result.
 
 ---
 
-# 6. But the clock is only part of the story
+## 6. But the clock is only part of the story
 
 The agent trajectories were also different.
 
@@ -520,7 +525,7 @@ That does **not** mean the additional context was unnecessary. It simply means t
 
 ---
 
-# 7. Cache behavior
+## 7. Cache behavior
 
 The cached-input proportions were approximately equal:
 
@@ -552,7 +557,7 @@ The current experiment does not isolate how much of the final 87m 50s difference
 
 ---
 
-# 8. Did both agents actually solve the same problem?
+## 8. Did both agents actually solve the same problem?
 
 This is where the experiment becomes more interesting.
 
@@ -597,7 +602,7 @@ But the final engineering destination was highly similar.
 
 ---
 
-# 9. Solution quality vs trajectory efficiency
+## 9. Solution quality vs trajectory efficiency
 
 This suggests two different dimensions for coding-agent evaluation.
 
@@ -634,7 +639,7 @@ The end-to-end result reveals both.
 
 ---
 
-# 10. Validation
+## 10. Validation
 
 The recorded RTX evidence contains:
 
@@ -682,7 +687,7 @@ This is an example of why preserving raw evidence matters.
 
 ---
 
-# 11. Why the 3.83× result should not be over-interpreted
+## 11. Why the 3.83× result should not be over-interpreted
 
 The wall-clock ratio is real:
 
@@ -735,7 +740,7 @@ That is both useful and reproducible.
 
 ---
 
-# 12. Why the trajectory difference matters
+## 12. Why the trajectory difference matters
 
 Suppose two systems both reach the same patch:
 
@@ -782,7 +787,7 @@ This is why LCAB treats **agent trajectory** as a first-class measurement.
 
 ---
 
-# 13. A useful way to think about coding-agent efficiency
+## 13. A useful way to think about coding-agent efficiency
 
 A coding agent can be viewed as a closed-loop controller:
 
@@ -832,13 +837,13 @@ However, the current aggregate data is not sufficient to establish that this exa
 
 ---
 
-# 14. What would make the next experiment stronger?
+## 14. What would make the next experiment stronger?
 
 The next step is not another isolated hardware comparison.
 
 The next step is **controlled scaling**.
 
-## Experiment A — Repeatability
+### Experiment A — Repeatability
 
 Run the same task multiple times:
 
@@ -859,7 +864,7 @@ A single run is an observation. Repeated runs establish variance.
 
 ---
 
-## Experiment B — Context scaling
+### Experiment B — Context scaling
 
 Run the same workload at:
 
@@ -895,7 +900,7 @@ This would reveal whether the performance gap grows as context increases.
 
 ---
 
-## Experiment C — Per-turn trajectory analysis
+### Experiment C — Per-turn trajectory analysis
 
 Instead of only recording aggregate totals, capture:
 
@@ -918,7 +923,7 @@ Then the benchmark can answer:
 
 ---
 
-## Experiment D — Runtime isolation
+### Experiment D — Runtime isolation
 
 Where practical, hold model and agent configuration constant and vary the inference backend.
 
@@ -926,7 +931,7 @@ This is difficult across Windows/NVIDIA and Apple Silicon, but it is the experim
 
 ---
 
-# 15. The next-generation LCAB data model
+## 15. The next-generation LCAB data model
 
 The benchmark can eventually turn each Pi session into a structured trajectory:
 
@@ -968,17 +973,17 @@ PUBLIC CONCLUSION
 
 ---
 
-# 16. What this benchmark does establish
+## 16. What this benchmark does establish
 
 The current experiment provides strong evidence for the following statements:
 
-### 1. The RTX configuration completed the recorded task faster.
+**1. The RTX configuration completed the recorded task faster.**
 
 ```text
 31m 01s vs 118m 51s
 ```
 
-### 2. The M4 trajectory was substantially larger.
+**2. The M4 trajectory was substantially larger.**
 
 ```text
 +43% messages
@@ -987,25 +992,25 @@ The current experiment provides strong evidence for the following statements:
 +92% total tokens
 ```
 
-### 3. Output-token volume was relatively similar.
+**3. Output-token volume was relatively similar.**
 
 ```text
 36.3K vs 39.0K
 ```
 
-### 4. Cache share was approximately similar.
+**4. Cache share was approximately similar.**
 
 ```text
 ~90.5% on both runs
 ```
 
-### 5. The engineering solutions converged strongly.
+**5. The engineering solutions converged strongly.**
 
 Both patches implemented the same core `steps` propagation and sidecar-aware workflow mapping.
 
 ---
 
-# 17. What this benchmark does not establish
+## 17. What this benchmark does not establish
 
 The experiment does **not** establish:
 
@@ -1028,7 +1033,7 @@ Those are questions for future controlled experiments.
 
 ---
 
-# 18. The broader research question
+## 18. The broader research question
 
 The first LCAB result leads to a more useful question than:
 
@@ -1067,7 +1072,7 @@ This is the direction LCAB is intended to explore.
 
 ---
 
-# 19. Reproducibility
+## 19. Reproducibility
 
 The benchmark repository retains the evidence needed to inspect the experiment:
 
@@ -1099,11 +1104,11 @@ The ai_video_optimization_app code changes used for the benchmark are maintained
 
 ---
 
-# 20. Lessons from the first experiment
+## 20. Lessons from the first experiment
 
 There are four lessons I would carry forward.
 
-## Lesson 1 — Measure the repair, not only the model
+### Lesson 1 — Measure the repair, not only the model
 
 Tokens/sec is useful, but the developer ultimately cares about:
 
@@ -1113,7 +1118,7 @@ working software
 
 ---
 
-## Lesson 2 — Record the trajectory
+### Lesson 2 — Record the trajectory
 
 Two agents can reach the same patch through very different paths.
 
@@ -1121,7 +1126,7 @@ That difference is operationally important.
 
 ---
 
-## Lesson 3 — Preserve raw evidence
+### Lesson 3 — Preserve raw evidence
 
 A benchmark should not silently "fix" inconvenient data.
 
@@ -1129,7 +1134,7 @@ The Mac `pytest` issue and malformed timing fields are part of the experiment re
 
 ---
 
-## Lesson 4 — Separate observation from explanation
+### Lesson 4 — Separate observation from explanation
 
 The benchmark observed:
 
@@ -1143,7 +1148,7 @@ That distinction makes the benchmark more useful, not less.
 
 ---
 
-# 21. Final takeaway
+## 21. Final takeaway
 
 The most interesting result from this first LCAB experiment is not simply:
 
@@ -1216,7 +1221,7 @@ And the only useful way to understand the final developer experience is to measu
 
 ---
 
-## 🙏 Model Attribution & Credits
+## Appendix B — Model Attribution & Credits
 
 The RTX 5060 Ti benchmark used the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189** on Hugging Face:
 
@@ -1232,7 +1237,7 @@ Many thanks to **huytd189** for making the GGUF release available for local infe
 
 ---
 
-## Appendix B — Evidence boundary
+## Appendix C — Evidence boundary
 
 This article distinguishes three levels of statement:
 
@@ -1252,7 +1257,7 @@ Where the current experiment cannot isolate a cause, this article does not claim
 
 ---
 
-## Appendix C — Project documentation
+## Appendix D — Project documentation
 
 The LCAB repository contains the methodology, workload definition, hardware descriptions, benchmark procedure, detailed Task 01 results, code analysis, agent/tool trajectory analysis, summary findings, and raw evidence.
 
