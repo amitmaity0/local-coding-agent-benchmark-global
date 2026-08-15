@@ -71,11 +71,10 @@ This suggests that **real coding-agent performance is an end-to-end systems prop
 - [The workload](#4-the-workload-a-real-aivideooptimizationapp-repair)
 - [Headline result](#5-the-headline-result)
 - [Agent trajectory](#6-but-the-clock-is-only-part-of-the-story)
-- [Validation](#10-validation)
-- [What the benchmark establishes](#...)
-- [Follow-up experiments](#...)
-- [Reproducibility](#...)
-- [Model attribution](#...)
+- [Cache Behavior](#7-cache-behavior)
+- [Did both agents actually solve the same problem?](#8-did-both-agents-actually-solve-the-same-problem?)
+- [Solution quality vs trajectory efficiency](#9-solution-quality-vs-trajectory-efficiency)
+
 
 ## 1. Why benchmark coding agents with real repairs?
 
