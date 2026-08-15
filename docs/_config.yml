@@ -1,0 +1,4 @@
+title: Local Coding Agent Benchmark
+description: Real-world benchmarking of local AI coding agents on software-repair workloads
+theme: jekyll-theme-cayman
+markdown: kramdown
