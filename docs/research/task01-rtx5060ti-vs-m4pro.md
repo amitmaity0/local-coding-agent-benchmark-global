@@ -20,6 +20,10 @@ tags:
 
 Local LLM benchmarking usually starts with a familiar question:
 
+> ⚠️ **Experimental status**
+>
+> This is the first LCAB real-workload experiment and currently represents **one software-repair task and one recorded run per configuration**. The result is an initial systems comparison, not a statistically general hardware ranking.
+
 > **How many tokens per second can this machine generate?**
 
 For coding agents, that is only part of the story.
@@ -43,7 +47,7 @@ The recorded result was striking:
 |---|---:|---:|
 | Inference runtime | llama.cpp | oMLX / MLX |
 | Agent | Pi 0.84.1 | Pi 0.84.1 |
-| Model family | Qwen3.6-27B | Qwen3.6-27B |
+| Model | Qwen3.6-27B 4.5bpw-pure GGUF | Qwen3.6-27B oQ4-MTP |
 | Context target | 55K | 55K |
 | Wall time | **31m 01s** | **118m 51s** |
 | Tool calls | **80** | **121** |
@@ -52,13 +56,26 @@ The recorded result was striking:
 | Output tokens | **36.3K** | **39.0K** |
 | Total tokens | **2.16M** | **4.15M** |
 
-The RTX configuration completed the recorded workload in approximately **3.83× less wall-clock time** than the M4 configuration.
 
+The observed wall-clock ratio was approximately **3.83×** in favor of the RTX configuration.
 But the more interesting finding is that the two agents converged on essentially the same engineering solution while taking very different paths to get there.
 
 This suggests that **real coding-agent performance is an end-to-end systems property** involving hardware, inference runtime, context processing, agent trajectory, tool interaction, and validation—not simply model tokens/second.
 
 ---
+## 📚 Contents
+
+- [Why benchmark coding agents with real repairs?](#1-why-benchmark-coding-agents-with-real-repairs)
+- [LCAB measurement model](#2-the-lcab-measurement-model)
+- [Experimental setup](#3-experimental-setup)
+- [The workload](#4-the-workload-a-real-aivideooptimizationapp-repair)
+- [Headline result](#5-the-headline-result)
+- [Agent trajectory](#6-but-the-clock-is-only-part-of-the-story)
+- [Validation](#10-validation)
+- [What the benchmark establishes](#...)
+- [Follow-up experiments](#...)
+- [Reproducibility](#...)
+- [Model attribution](#...)
 
 ## 1. Why benchmark coding agents with real repairs?
 
@@ -1165,6 +1182,23 @@ And the only useful way to understand the final developer experience is to measu
 | Total tokens | 2,160,531 | 4,149,722 |
 | Recorded validation | 230 tests + compileall | 227 tests reported; environment caveat |
 
+
+---
+
+## 🙏 Model Attribution & Credits
+
+The RTX 5060 Ti benchmark used the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189** on Hugging Face:
+
+[Qwen3.6-27B-pure-GGUF](https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF)
+
+The benchmark used the published GGUF without modifying the model weights.
+
+**Upstream model:** [Qwen/Qwen3.6-27B](https://huggingface.co/Qwen/Qwen3.6-27B)
+
+The underlying model was developed by the **Qwen Team**.
+
+Many thanks to **huytd189** for making the GGUF release available for local inference and benchmarking.
+
 ---
 
 ## Appendix B — Evidence boundary
@@ -1196,18 +1230,3 @@ Start here:
 **https://github.com/amitmaity0/local-coding-agent-benchmark-global**
 
 ---
-
-
-## 🙏 Model Attribution & Credits
-
-The RTX 5060 Ti benchmark used the **Qwen3.6-27B 4.5bpw-pure GGUF** published by **huytd189**:
-
-[Qwen3.6-27B-pure-GGUF](https://huggingface.co/huytd189/Qwen3.6-27B-pure-GGUF)
-
-The benchmark used the published GGUF without modifying the model weights.
-
-**Upstream model:** [Qwen/Qwen3.6-27B](https://huggingface.co/Qwen/Qwen3.6-27B)
-
-The underlying model was developed by the **Qwen Team**. The GGUF repository is a quantized distribution of the upstream Qwen3.6-27B model.
-
-Many thanks to **huytd189** for making the GGUF release available for local inference and benchmarking.
